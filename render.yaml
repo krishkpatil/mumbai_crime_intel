@@ -24,10 +24,12 @@ services:
         value: "true"
       - key: API_RELOAD_URL
         value: http://localhost:$PORT/api/reload
-    disk:
-      name: mcip-data
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
+    # disk not supported on free tier — processed JSON is committed to repo
+    # upgrade to paid plan and uncomment to persist raw PDFs:
+    # disk:
+    #   name: mcip-data
+    #   mountPath: /opt/render/project/src/data
+    #   sizeGB: 1
 
   # ── Next.js frontend ─────────────────────────────────────────────────────────
   - type: web
