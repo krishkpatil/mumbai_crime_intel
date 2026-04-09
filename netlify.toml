@@ -1,0 +1,12 @@
+[build]
+  base    = "dashboard"
+  command = "npm ci && npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  # Set NEXT_PUBLIC_API_URL in Netlify dashboard → Site settings → Environment variables
+  # Value: https://mcip-backend.onrender.com/api  (your Render backend URL)
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

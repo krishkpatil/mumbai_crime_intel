@@ -1,0 +1,25 @@
+# Ingestion Pipeline
+camelot-py[cv]
+pdfplumber
+pandas
+tqdm
+requests
+opencv-python-headless
+ghostscript
+
+# API Tier
+fastapi
+uvicorn
+pydantic
+python-dotenv
+apscheduler
+
+# ML / AI
+prophet
+scikit-learn
+sentence-transformers
+groq
+
+# Visualization/Data
+jinja2
+openpyxl

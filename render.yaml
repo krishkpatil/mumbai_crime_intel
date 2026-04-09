@@ -1,0 +1,45 @@
+# Render.com blueprint — deploys both services from one repo
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Usage:
+#   1. Push this repo to GitHub
+#   2. Go to render.com → New → Blueprint
+#   3. Connect your repo — Render reads this file automatically
+#   4. Set GROQ_API_KEY in the backend service environment
+
+services:
+
+  # ── FastAPI backend ──────────────────────────────────────────────────────────
+  - type: web
+    name: mcip-backend
+    runtime: python
+    region: singapore          # closest to Mumbai
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false             # set manually in Render dashboard
+      - key: ENABLE_SCHEDULER
+        value: "true"
+      - key: API_RELOAD_URL
+        value: http://localhost:$PORT/api/reload
+    disk:
+      name: mcip-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+
+  # ── Next.js frontend ─────────────────────────────────────────────────────────
+  - type: web
+    name: mcip-frontend
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: cd dashboard && npm ci && npm run build
+    startCommand: cd dashboard && node .next/standalone/server.js
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          name: mcip-backend
+          type: web
+          property: host          # auto-wires the backend URL

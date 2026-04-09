@@ -1,0 +1,25 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+
+# Data (raw PDFs are large; processed JSON is derived)
+data/raw/pdfs/
+
+# Node
+node_modules/
+dashboard/node_modules/
+dashboard/.next/
+dashboard/.netlify/
+
+# Claude Code
+.claude/
+.agent/
+.stitch/
+
+# Misc
+.DS_Store
+backend.log

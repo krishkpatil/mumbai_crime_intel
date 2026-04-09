@@ -1,0 +1,778 @@
+[
+  {
+    "filename": "99.pdf",
+    "report_date": "Unknown-Unknown",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.91,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "एप्रिल_२०१८_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2018-4",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.89,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "एप्रिल_२०१९_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2019-4",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "एप्रिल_२०२०_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2020-4",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "ऑक्टोबर_२०१९_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2019-10",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "ऑक्टोम्बर_२०१८_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2018-Unknown",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "ऑगस्ट_२०१८_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2018-8",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "ऑगस्ट_२०१९_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2019-8",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "जानेवारी__२०१९_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2019-1",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "जानेवारी__२०२०_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2020-1",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "जानेवारी_२०१८_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2018-1",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "जानेवारी_२०२१_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2021-1",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "जुलै_२०१८_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2018-7",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "जुलै_२०१९_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2019-7",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "जून__२०१९_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2019-6",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "जून_२०१८_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2018-6",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "डिसेंबर_२०१९_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2019-12",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "डिसेम्बर_२०१८_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2018-Unknown",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "नोव्हेंबर_२०१८_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2018-11",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "नोव्हेंबर_२०१९_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2019-11",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "फेब्रुवारी_२०१८_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2018-2",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "फेब्रुवारी_२०१९_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2019-2",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "फेब्रुवारी_२०२०_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2020-2",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "फेब्रुवारी_२०२१_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2021-2",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मार्च__२०२०_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2020-3",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मार्च_२०१८_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2018-3",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मार्च_२०१९_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2019-3",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मार्च_२०२१_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2021-3",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_एप्रिल_२०२१.pdf",
+    "report_date": "2021-4",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_एप्रिल_२०२२.pdf",
+    "report_date": "2022-4",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.83,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_ऑक्टोबर__२०२०.pdf",
+    "report_date": "2020-10",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_ऑक्टोबर_२०२१.pdf",
+    "report_date": "2021-10",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.79,
+    "status": "PARTIAL"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_ऑगस्ट_२०२०.pdf",
+    "report_date": "2020-8",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_ऑगस्ट_२०२१.pdf",
+    "report_date": "2021-8",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_जानेवारी_२०२२.pdf",
+    "report_date": "2022-1",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.83,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_जुलै_२०२०.pdf",
+    "report_date": "2020-7",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_जुलै_२०२१.pdf",
+    "report_date": "2021-7",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_जून_२०२०.pdf",
+    "report_date": "2020-6",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_जून_२०२१.pdf",
+    "report_date": "2021-6",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_डिसेंबर__२०२१.pdf",
+    "report_date": "2021-12",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.82,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_डिसेंबर_२०२०.pdf",
+    "report_date": "2020-12",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_नोव्हेंबर_२०२०.pdf",
+    "report_date": "2020-11",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_नोव्हेंबर_२०२१.pdf",
+    "report_date": "2021-11",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.78,
+    "status": "PARTIAL"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_फेब्रुवारी_२०२२.pdf",
+    "report_date": "2022-2",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.83,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_मार्च_२०२२.pdf",
+    "report_date": "2022-3",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.83,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_एप्रिल,_२०२३.pdf",
+    "report_date": "2023-4",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.86,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_एप्रिल,_२०२४.pdf",
+    "report_date": "2024-4",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.88,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_एप्रिल,_२०२५.pdf",
+    "report_date": "2025-4",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_ऑक्टोबर,_२०२४.pdf",
+    "report_date": "2024-10",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_ऑक्टोबर_,२०२२.pdf",
+    "report_date": "2022-10",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.83,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_ऑक्टोबर_,२०२५.pdf",
+    "report_date": "2025-10",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.91,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_ऑक्टोबर__,२०२३..pdf",
+    "report_date": "2023-10",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_ऑगस्ट,_२०२२.pdf",
+    "report_date": "2022-8",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.83,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_ऑगस्ट,_२०२४.pdf",
+    "report_date": "2024-8",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_ऑगस्ट,_२०२५.pdf",
+    "report_date": "2025-8",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.91,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_जलै,_२०२२.pdf",
+    "report_date": "2022-Unknown",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.83,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_जानेवारी,_२०२४..pdf",
+    "report_date": "2024-1",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.86,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_जानेवारी,_२०२५.pdf",
+    "report_date": "2025-1",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_जानेवारी,२०२३.pdf",
+    "report_date": "2023-1",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.86,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_जानेवारी,२०२६.pdf",
+    "report_date": "2026-1",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_जुन,_२०२३.pdf",
+    "report_date": "2023-Unknown",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.86,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_जुन,_२०२४.pdf",
+    "report_date": "2024-Unknown",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.88,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_जुलै,_२०२४.pdf",
+    "report_date": "2024-7",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_जुलै_,_२०२३.pdf",
+    "report_date": "2023-7",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.86,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_जून,_२०२५.pdf",
+    "report_date": "2025-6",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.91,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_जून_२०२२.pdf",
+    "report_date": "2022-6",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.83,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_डिसेंबर,_२०२३..pdf",
+    "report_date": "2023-12",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.86,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_डिसेंबर,_२०२४.pdf",
+    "report_date": "2024-12",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_डिसेंबर,२०२२.pdf",
+    "report_date": "2022-12",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.83,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_डिसेंबर,२०२५.pdf",
+    "report_date": "2025-12",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.91,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_नोव्हेंबर,_२०२२.pdf",
+    "report_date": "2022-11",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.83,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_नोव्हेंबर,_२०२३..pdf",
+    "report_date": "2023-11",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_नोव्हेंबर,_२०२४.pdf",
+    "report_date": "2024-11",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_नोव्हेंबर,२०२५.pdf",
+    "report_date": "2025-11",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.91,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_फेब्रुवारी,_२०२३_(सुधारित).pdf",
+    "report_date": "2023-2",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.86,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_फेब्रुवारी,_२०२५.pdf",
+    "report_date": "2025-2",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_फेब्रुवारी_,_२०२४..pdf",
+    "report_date": "2024-2",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.89,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_फेब्रुवारी_,२०२६.pdf",
+    "report_date": "2026-2",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.85,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_मार्च,_२०२३.pdf",
+    "report_date": "2023-3",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.86,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_मार्च,_२०२४..pdf",
+    "report_date": "2024-3",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.89,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_मार्च,_२०२५.pdf",
+    "report_date": "2025-3",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_मे,_२०२३.pdf",
+    "report_date": "2023-5",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.86,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_मे,_२०२४.pdf",
+    "report_date": "2024-5",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.88,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_मे,_२०२५.pdf",
+    "report_date": "2025-5",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_सप्टेंबर,_२०२२.pdf",
+    "report_date": "2022-9",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.83,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_सप्टेंबर,_२०२४.pdf",
+    "report_date": "2024-9",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_सप्टेंबर,_२०२५.pdf",
+    "report_date": "2025-9",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.91,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_माहे_-_सप्टेंबर__,२०२३..pdf",
+    "report_date": "2023-9",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.86,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_मे_२०२१.pdf",
+    "report_date": "2021-5",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_मे_२०२२.pdf",
+    "report_date": "2022-5",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.83,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_संप्टेंबर_२०२०.pdf",
+    "report_date": "2020-Unknown",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मासिक_गुन्हे_अहवाल_सप्टेंबर_२०२१.pdf",
+    "report_date": "2021-9",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मे__२०१८_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2018-5",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मे_२०१९_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2019-5",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "मे_२०२०_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2020-5",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "सप्टेंबर__२०१९_चा__मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2019-9",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  },
+  {
+    "filename": "सप्टेंबर_२०१८_चा_मासिक_गुन्हे_अहवाल.pdf",
+    "report_date": "2018-9",
+    "layout": "modern_english_bordered",
+    "extraction_score": 1.0,
+    "semantic_score": 0.87,
+    "status": "SUCCESS"
+  }
+]
