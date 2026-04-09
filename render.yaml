@@ -42,3 +42,7 @@ services:
     envVars:
       - key: NEXT_PUBLIC_API_URL
         value: https://mcip-backend.onrender.com/api
+      - key: HOSTNAME
+        value: "0.0.0.0"
+      - key: PORT
+        value: "10000"
