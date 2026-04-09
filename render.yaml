@@ -41,7 +41,4 @@ services:
     startCommand: cd dashboard && node .next/standalone/server.js
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          name: mcip-backend
-          type: web
-          property: host          # auto-wires the backend URL
+        value: https://mcip-backend.onrender.com/api
