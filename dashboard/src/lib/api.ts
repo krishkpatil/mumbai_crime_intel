@@ -50,7 +50,7 @@ export interface ChatMessage {
   content: string;
 }
 
-const BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api').replace(/\/$/, '');
+const BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'https://mcip-backend.onrender.com/api').replace(/\/$/, '');
 
 export const fetchTrends = async (group?: string): Promise<TrendData[]> => {
   const url = group ? `${BASE_URL}/trends?group=${encodeURIComponent(group)}` : `${BASE_URL}/trends`;
