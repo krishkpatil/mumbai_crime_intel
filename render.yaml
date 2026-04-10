@@ -37,8 +37,8 @@ services:
     runtime: node
     region: singapore
     plan: free
-    buildCommand: cd dashboard && npm ci && npm run build && cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public
-    startCommand: cd dashboard && HOSTNAME=0.0.0.0 node .next/standalone/server.js
+    buildCommand: cd dashboard && npm ci && npm run build
+    startCommand: cd dashboard && npm start
     envVars:
       - key: NEXT_PUBLIC_API_URL
         value: https://mcip-backend.onrender.com/api
