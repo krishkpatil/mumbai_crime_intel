@@ -44,9 +44,12 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#FDFDFD] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-6">
+        <div className="flex flex-col items-center gap-6 max-w-sm text-center px-6">
           <div className="w-10 h-10 border-t-2 border-[#09090B] rounded-full animate-spin" />
           <p className="text-sm font-data text-slate-400 uppercase tracking-widest">Loading data…</p>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            The backend is waking up from sleep — this takes <span className="text-slate-600 font-medium">30–50 seconds</span> on first load. Subsequent visits are instant.
+          </p>
         </div>
       </div>
     );
