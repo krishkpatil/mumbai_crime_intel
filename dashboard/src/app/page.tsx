@@ -16,6 +16,17 @@ import {
 
 export type Tab = 'overview' | 'trends' | 'forecast' | 'anomalies' | 'chat';
 
+type StepStatus = 'waiting' | 'loading' | 'done' | 'error';
+interface Step { label: string; detail: string; status: StepStatus; }
+
+const STEPS: Omit<Step, 'status'>[] = [
+  { label: 'Waking up backend',     detail: 'Free tier spins down after inactivity — cold start takes 30–50s' },
+  { label: 'Loading crime records', detail: '2,658 records across 90 months (2018–2026)' },
+  { label: 'Fetching categories',   detail: '41 canonical crime types via NLP clustering' },
+  { label: 'Running anomaly scan',  detail: 'Isolation Forest + CUSUM on monthly data' },
+  { label: 'Computing insights',    detail: 'Detection rates, trends, period comparisons' },
+];
+
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [trends, setTrends] = useState<TrendData[]>([]);
@@ -23,17 +34,49 @@ export default function Dashboard() {
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(true);
+  const [steps, setSteps] = useState<Step[]>(
+    STEPS.map((s, i) => ({ ...s, status: i === 0 ? 'loading' : 'waiting' }))
+  );
+
+  const setStep = (i: number, status: StepStatus) =>
+    setSteps(prev => prev.map((s, idx) => idx === i ? { ...s, status } : s));
 
   useEffect(() => {
-    Promise.all([fetchTrends(), fetchCategories(), fetchAnomalies(), fetchInsights()])
-      .then(([t, c, a, i]) => {
+    (async () => {
+      try {
+        // Step 0: wake backend (trends call acts as the ping)
+        setStep(0, 'loading');
+        const t = await fetchTrends();
+        setStep(0, 'done');
         setTrends(t || []);
+
+        // Step 1: already done via trends
+        setStep(1, 'loading');
+        setStep(1, 'done');
+
+        // Step 2: categories
+        setStep(2, 'loading');
+        const c = await fetchCategories();
+        setStep(2, 'done');
         setCategories(c || []);
+
+        // Step 3: anomalies
+        setStep(3, 'loading');
+        const a = await fetchAnomalies();
+        setStep(3, 'done');
         setAnomalies(a || []);
-        setInsights(i || []);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+
+        // Step 4: insights
+        setStep(4, 'loading');
+        const ins = await fetchInsights();
+        setStep(4, 'done');
+        setInsights(ins || []);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
   const totalRegistered = trends.reduce((s, r) => s + (r.Registered || 0), 0);
@@ -44,12 +87,41 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#FDFDFD] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-6 max-w-sm text-center px-6">
-          <div className="w-10 h-10 border-t-2 border-[#09090B] rounded-full animate-spin" />
-          <p className="text-sm font-data text-slate-400 uppercase tracking-widest">Loading data…</p>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            The backend is waking up from sleep — this takes <span className="text-slate-600 font-medium">30–50 seconds</span> on first load. Subsequent visits are instant.
-          </p>
+        <div className="flex flex-col gap-5 w-full max-w-sm px-6">
+          <div className="flex flex-col gap-1 mb-2">
+            <p className="text-sm font-semibold text-slate-800 uppercase tracking-widest">Mumbai Crime Intelligence</p>
+            <p className="text-xs text-slate-400">Initialising platform…</p>
+          </div>
+          {steps.map((step, i) => (
+            <div key={i} className="flex items-start gap-3">
+              <div className="mt-0.5 w-5 h-5 flex-shrink-0 flex items-center justify-center">
+                {step.status === 'done' && (
+                  <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+                {step.status === 'loading' && (
+                  <div className="w-4 h-4 border-2 border-t-[#09090B] border-slate-200 rounded-full animate-spin" />
+                )}
+                {step.status === 'waiting' && (
+                  <div className="w-3 h-3 rounded-full bg-slate-200" />
+                )}
+                {step.status === 'error' && (
+                  <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <p className={`text-sm font-medium ${step.status === 'waiting' ? 'text-slate-300' : 'text-slate-800'}`}>
+                  {step.label}
+                </p>
+                {step.status !== 'waiting' && (
+                  <p className="text-xs text-slate-400">{step.detail}</p>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
