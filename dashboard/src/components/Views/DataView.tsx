@@ -248,7 +248,7 @@ export const DataView: React.FC = () => {
   // Derived stats
   const totalPdfs     = quality.length;
   const avgExtraction = totalPdfs
-    ? quality.reduce((s, r) => s + r.extraction_score, 0) / totalPdfs
+    ? quality.reduce((s, r) => s + (r.extraction_score ?? 0), 0) / totalPdfs
     : 0;
   const lastRunTs     = runs[0]?.finished_at ?? null;
   const totalRecords  = health?.records ?? 0;
@@ -357,7 +357,7 @@ export const DataView: React.FC = () => {
                     <td className="px-4 py-3 text-slate-600">{formatTs(run.started_at)}</td>
                     <td className="px-4 py-3 font-data font-bold uppercase text-slate-500 text-[10px] tracking-widest">{run.trigger}</td>
                     <td className="px-4 py-3 tabular-nums">{run.new_pdfs}</td>
-                    <td className="px-4 py-3 tabular-nums">{run.records_total.toLocaleString()}</td>
+                    <td className="px-4 py-3 tabular-nums">{(run.records_total ?? 0).toLocaleString()}</td>
                     <td className="px-4 py-3">
                       <span className={cn('text-[10px] font-data font-black uppercase tracking-widest px-2 py-0.5', runStatusStyle(run.status))}>
                         {run.status}
@@ -424,12 +424,12 @@ export const DataView: React.FC = () => {
                   <td className="px-4 py-3 text-slate-700 max-w-[160px] truncate" title={rec.filename}>
                     {rec.filename}
                   </td>
-                  <td className="px-4 py-3 text-slate-600 tabular-nums whitespace-nowrap">{rec.report_date}</td>
-                  <td className="px-4 py-3 text-slate-400 font-data text-[10px] uppercase tracking-wide max-w-[140px] truncate" title={rec.layout}>
-                    {rec.layout}
+                  <td className="px-4 py-3 text-slate-600 tabular-nums whitespace-nowrap">{rec.report_date ?? '—'}</td>
+                  <td className="px-4 py-3 text-slate-400 font-data text-[10px] uppercase tracking-wide max-w-[140px] truncate" title={rec.layout ?? ''}>
+                    {rec.layout ?? '—'}
                   </td>
-                  <td className="px-4 py-3"><ScoreBar score={rec.extraction_score} /></td>
-                  <td className="px-4 py-3"><ScoreBar score={rec.semantic_score} /></td>
+                  <td className="px-4 py-3"><ScoreBar score={rec.extraction_score ?? 0} /></td>
+                  <td className="px-4 py-3"><ScoreBar score={rec.semantic_score ?? 0} /></td>
                   <td className="px-4 py-3">
                     <span className={cn(
                       'text-[10px] font-data font-black uppercase tracking-widest px-2 py-0.5',
