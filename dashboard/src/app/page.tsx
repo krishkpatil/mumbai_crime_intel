@@ -23,8 +23,8 @@ const STEPS: Omit<Step, 'status'>[] = [
   { label: 'Waking up backend',     detail: 'Free tier spins down after inactivity — cold start takes 30–50s' },
   { label: 'Loading crime records', detail: '2,658 records across 90 months (2018–2026)' },
   { label: 'Fetching categories',   detail: '41 canonical crime types via NLP clustering' },
-  { label: 'Running anomaly scan',  detail: 'Isolation Forest + CUSUM on monthly data' },
-  { label: 'Computing insights',    detail: 'Detection rates, trends, period comparisons' },
+  { label: 'Loading anomalies',     detail: 'Pre-computed Isolation Forest + CUSUM results from database' },
+  { label: 'Loading insights',      detail: 'Detection rates, trends, period comparisons' },
 ];
 
 export default function Dashboard() {
