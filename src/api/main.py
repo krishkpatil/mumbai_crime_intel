@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 # Resolve project root so all relative paths work regardless of launch dir.
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 os.chdir(PROJECT_ROOT)
+sys.path.insert(0, str(PROJECT_ROOT / "src/api"))
 sys.path.insert(0, str(PROJECT_ROOT / "src/ingestion"))
 
 load_dotenv(PROJECT_ROOT / ".env")
