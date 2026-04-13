@@ -13,6 +13,7 @@ uvicorn
 pydantic
 python-dotenv
 apscheduler
+psycopg2-binary
 
 # ML / AI
 prophet

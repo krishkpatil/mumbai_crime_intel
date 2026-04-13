@@ -12,20 +12,25 @@ os.chdir(PROJECT_ROOT)
 sys.path.insert(0, str(PROJECT_ROOT / "src/ingestion"))
 
 load_dotenv(PROJECT_ROOT / ".env")
+
+import db  # Postgres persistence layer (falls back gracefully when no DB)
+
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
+import csv
+import io
 
-warnings.filterwarnings("ignore")          # suppress Prophet / Stan noise
+warnings.filterwarnings("ignore")
 logging.getLogger("prophet").setLevel(logging.ERROR)
 logging.getLogger("cmdstanpy").setLevel(logging.ERROR)
 
 app = FastAPI(title="Mumbai Crime Data API")
 
-# Enable CORS for Next.js
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -33,114 +38,130 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Data layer ────────────────────────────────────────────────────────────────
+
 class CrimeDataStore:
-    def __init__(self, json_path="data/processed/crime.json"):
-        self.df = self._load_and_flatten(json_path)
-        
-    def _load_and_flatten(self, path):
+    def __init__(self):
+        self.df = self._load()
+
+    def _load(self) -> pd.DataFrame:
+        # 1. Try Postgres
+        if db.DATABASE_URL:
+            df = db.get_df()
+            if not df.empty:
+                print(f"[Store] Loaded {len(df)} records from Postgres")
+                return df
+            # DB is empty — seed from JSON then reload
+            json_path = "data/processed/crime.json"
+            if Path(json_path).exists():
+                print("[Store] DB empty — seeding from crime.json")
+                db.seed_from_json(json_path)
+                df = db.get_df()
+                if not df.empty:
+                    print(f"[Store] Seeded and loaded {len(df)} records")
+                    return df
+
+        # 2. Fallback: load directly from JSON (local dev / no DB)
+        return self._load_json("data/processed/crime.json")
+
+    def _load_json(self, path: str) -> pd.DataFrame:
         try:
-            with open(path, 'r') as f:
+            with open(path) as f:
                 data = json.load(f)
         except Exception as e:
-            print(f"Error loading {path}: {e}")
+            print(f"[Store] Error loading {path}: {e}")
             return pd.DataFrame()
-            
+
         flat = []
         for entry in data:
-            meta = entry.get('lineage', {})
-            scores = entry.get('scores', {})
-            for rec in entry.get('records', []):
-                # Flatten meta and scores into row
-                row = {**meta, **scores, **rec}
-                flat.append(row)
-        
+            meta   = entry.get("lineage", {})
+            scores = entry.get("scores", {})
+            for rec in entry.get("records", []):
+                flat.append({**meta, **scores, **rec})
+
         if not flat:
             return pd.DataFrame()
 
         df = pd.DataFrame(flat)
-        
-        # Convert report_date to datetime
+
         def parse_date(d_str):
-            if not d_str or "Unknown" in d_str:
+            if not d_str or "Unknown" in str(d_str):
                 return None
             try:
-                # Handle formats: 2024-7 or 2024-July 
                 if "-" in d_str:
                     parts = d_str.split("-")
                     if parts[1].isdigit():
                         return datetime(int(parts[0]), int(parts[1]), 1)
                 return datetime.strptime(d_str, "%Y-%B")
-            except:
+            except Exception:
                 return None
-        
-        df['dt'] = df['report_date'].apply(parse_date)
-        
-        # Ensure counts are numeric (and drop strings like "1 2 3")
-        for col in ['registered', 'detected', 'registered_ytd', 'detected_ytd']:
+
+        df["dt"] = df["report_date"].apply(parse_date)
+        for col in ["registered", "detected", "registered_ytd", "detected_ytd"]:
             if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
-        
+                df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
         return df
 
+    # ── Query methods (unchanged logic, same return shapes) ───────────────────
+
     def get_summary(self, domain=None, group=None):
-        # Overall trend by month (excluding totals and unknowns)
-        df = self.df[(self.df['dt'].notnull()) & (self.df['is_total'] == False)]
+        df = self.df[(self.df["dt"].notnull()) & (self.df["is_total"] == False)]
         if domain:
-            df = df[df['domain'] == domain]
+            df = df[df["domain"] == domain]
         if group:
-            df = df[df['group'] == group]
-            
-        trends = df.groupby('dt').agg({
-            'registered': 'sum',
-            'detected': 'sum'
-        }).reset_index()
-        trends = trends.rename(columns={
-            'dt': 'report_date',
-            'registered': 'Registered',
-            'detected': 'Detected'
-        })
-        trends['report_date'] = trends['report_date'].dt.strftime('%Y-%m')
-        return trends.to_dict(orient='records')
+            df = df[df["group"] == group]
+        trends = (
+            df.groupby("dt")
+            .agg(registered=("registered", "sum"), detected=("detected", "sum"))
+            .reset_index()
+            .rename(columns={"dt": "report_date", "registered": "Registered", "detected": "Detected"})
+        )
+        trends["report_date"] = trends["report_date"].dt.strftime("%Y-%m")
+        return trends.to_dict(orient="records")
 
     def get_categories(self, year=None):
-        df = self.df[self.df['is_total'] == False]
+        df = self.df[self.df["is_total"] == False]
         if year:
-            df = df[df['report_date'].str.contains(str(year))]
-            
-        cats = df.groupby('group').agg({
-            'registered': 'sum',
-            'detected': 'sum'
-        }).reset_index()
-        cats = cats.rename(columns={
-            'group': 'category',
-            'registered': 'Registered',
-            'detected': 'Detected'
-        })
-        return cats.sort_values('Registered', ascending=False).to_dict(orient='records')
+            df = df[df["report_date"].str.contains(str(year))]
+        cats = (
+            df.groupby("group")
+            .agg(registered=("registered", "sum"), detected=("detected", "sum"))
+            .reset_index()
+            .rename(columns={"group": "category", "registered": "Registered", "detected": "Detected"})
+        )
+        return cats.sort_values("Registered", ascending=False).to_dict(orient="records")
 
     def get_reliability(self):
-        # Average semantic score by year-month
-        df = self.df.dropna(subset=['dt'])
-        rel = df.groupby('dt').agg({
-            'semantic': 'mean',
-            'extraction': 'mean'
-        }).reset_index()
-        rel = rel.rename(columns={
-            'semantic': 'semantic_score',
-            'extraction': 'extraction_score'
-        })
-        rel['date'] = rel['dt'].dt.strftime('%Y-%m')
-        return rel.sort_values('dt').to_dict(orient='records')
+        df = self.df.dropna(subset=["dt"])
+        rel = (
+            df.groupby("dt")
+            .agg(semantic_score=("semantic", "mean"), extraction_score=("extraction", "mean"))
+            .reset_index()
+        )
+        rel["date"] = rel["dt"].dt.strftime("%Y-%m")
+        return rel.sort_values("dt").to_dict(orient="records")
 
     def get_anomalies(self):
+        # Return cached results from DB if available
+        cached = db.get_anomalies_cached()
+        if cached:
+            return cached
+
+        # Compute fresh
+        result = self._compute_anomalies()
+
+        # Store for next time
+        if result and db.DATABASE_URL:
+            db.store_anomalies(result)
+
+        return result
+
+    def _compute_anomalies(self):
         from sklearn.ensemble import IsolationForest
         from sklearn.preprocessing import StandardScaler
         import numpy as np
 
-        base = self.df[(self.df['dt'].notnull()) & (self.df['is_total'] == False)]
-
-        # ── Build monthly feature matrix ───────────────────────────────────────
-        # Features: per-group registered counts + detection rate, one row per month
+        base = self.df[(self.df["dt"].notnull()) & (self.df["is_total"] == False)]
         groups = ["Women Crimes", "Fatal Crimes", "Kidnapping", "Misc",
                   "Theft & Robbery", "Violent Crimes", "White Collar", "Cyber Crime"]
 
@@ -167,17 +188,11 @@ class CrimeDataStore:
         feature_df = feature_df.join(group_pivot)
 
         X = feature_df.values
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
+        X_scaled = StandardScaler().fit_transform(X)
 
-        # ── Isolation Forest ───────────────────────────────────────────────────
-        clf = IsolationForest(
-            n_estimators=200,
-            contamination=0.08,   # expect ~8% of months to be anomalous
-            random_state=42,
-        )
-        scores = clf.fit_predict(X_scaled)               # -1 = anomaly, 1 = normal
-        raw_scores = clf.decision_function(X_scaled)     # lower = more anomalous
+        clf = IsolationForest(n_estimators=200, contamination=0.08, random_state=42)
+        scores = clf.fit_predict(X_scaled)
+        raw_scores = clf.decision_function(X_scaled)
 
         anomalies = []
         dates = feature_df.index
@@ -185,14 +200,10 @@ class CrimeDataStore:
         for i, (dt, label, score) in enumerate(zip(dates, scores, raw_scores)):
             if label != -1:
                 continue
-
-            reg = int(monthly_total.iloc[i]["registered"])
+            reg  = int(monthly_total.iloc[i]["registered"])
             rate = float(monthly_total.iloc[i]["detection_rate"])
-
-            # Determine severity by how far below zero the score is
             severity = "Critical" if score < -0.15 else "High" if score < -0.05 else "Medium"
 
-            # Characterise the anomaly
             if rate < 0.4:
                 anomaly_type = "Detection Drop"
                 detail = f"Detection rate collapsed to {rate:.1%} ({reg} cases registered)"
@@ -214,13 +225,12 @@ class CrimeDataStore:
                 "isolation_score": round(float(score), 4),
             })
 
-        # ── CUSUM change-point detection ───────────────────────────────────────
+        # CUSUM
         series = monthly_total["registered"].values.astype(float)
-        mu = series.mean()
-        std = series.std()
+        mu, std = series.mean(), series.std()
         cusum_pos, cusum_neg = 0.0, 0.0
         threshold = 4.0 * std
-        k = 0.5 * std   # allowance
+        k = 0.5 * std
 
         changepoints = []
         for i, val in enumerate(series):
@@ -238,93 +248,66 @@ class CrimeDataStore:
                     ),
                     "isolation_score": None,
                 })
-                cusum_pos, cusum_neg = 0.0, 0.0   # reset after flagging
+                cusum_pos, cusum_neg = 0.0, 0.0
 
-        # Merge, sort by date
         all_events = anomalies + changepoints
         all_events.sort(key=lambda x: x["date"])
         return all_events
 
     def get_insights(self):
-        df = self.df[(self.df['dt'].notnull()) & (self.df['is_total'] == False)]
-        
-        # Most frequent crime group
-        top_group = df.groupby('group')['registered'].sum().idxmax()
-        total_reg = df['registered'].sum()
-        
-        # Compute real detection rate comparison: 2018 baseline vs BNS era (2024+)
-        base_2018 = df[df['dt'].dt.year == 2018]
-        base_bns  = df[df['dt'].dt.year >= 2024]
-        rate_2018 = (base_2018['detected'].sum() / base_2018['registered'].replace(0, 1).sum()) if len(base_2018) else 0
-        rate_bns  = (base_bns['detected'].sum()  / base_bns['registered'].replace(0, 1).sum())  if len(base_bns)  else 0
+        df = self.df[(self.df["dt"].notnull()) & (self.df["is_total"] == False)]
+        top_group  = df.groupby("group")["registered"].sum().idxmax()
+        base_2018  = df[df["dt"].dt.year == 2018]
+        base_bns   = df[df["dt"].dt.year >= 2024]
+        rate_2018  = (base_2018["detected"].sum() / base_2018["registered"].replace(0, 1).sum()) if len(base_2018) else 0
+        rate_bns   = (base_bns["detected"].sum()  / base_bns["registered"].replace(0, 1).sum())  if len(base_bns)  else 0
         rate_delta = ((rate_bns - rate_2018) / rate_2018 * 100) if rate_2018 > 0 else 0
-        direction = "improvement" if rate_delta >= 0 else "decline"
+        direction  = "improvement" if rate_delta >= 0 else "decline"
 
         insights = [
-            {
-                "title": "Top Crime Contributor",
-                "text": f"{top_group} crimes account for the largest registered volume in the dataset.",
-                "type": "standard"
-            },
-            {
-                "title": "Detection Rate Trend",
-                "text": (
-                    f"Detection rates show a {abs(rate_delta):.1f}% {direction} in BNS-era reports "
-                    f"(2024+) vs 2018 baseline ({rate_bns:.1%} vs {rate_2018:.1%})."
-                ),
-                "type": "positive" if rate_delta >= 0 else "warning"
-            }
+            {"title": "Top Crime Contributor",
+             "text": f"{top_group} crimes account for the largest registered volume in the dataset.",
+             "type": "standard"},
+            {"title": "Detection Rate Trend",
+             "text": (f"Detection rates show a {abs(rate_delta):.1f}% {direction} in BNS-era reports "
+                      f"(2024+) vs 2018 baseline ({rate_bns:.1%} vs {rate_2018:.1%})."),
+             "type": "positive" if rate_delta >= 0 else "warning"},
         ]
-        
-        # Recent trend
-        latest_month = df['dt'].max()
+
+        latest_month = df["dt"].max()
         if latest_month:
-            latest_data = df[df['dt'] == latest_month]['registered'].sum()
+            latest_data = df[df["dt"] == latest_month]["registered"].sum()
             insights.append({
                 "title": f"Recent Volume ({latest_month.strftime('%B %Y')})",
                 "text": f"Captured {latest_data} total registration events in the latest report.",
-                "type": "info"
+                "type": "info",
             })
-            
         return insights
 
     def get_lineage(self, date_str: str):
-        # date_str is typically "YYYY-MM" from the frontend
         try:
-            # Parse the incoming date string (e.g., "2024-07")
             target_dt = datetime.strptime(date_str, "%Y-%m")
-            df = self.df[self.df['dt'] == target_dt]
-        except:
-            # Fallback to direct string match if parsing fails
-            df = self.df[self.df['report_date'] == date_str]
-        
+            df = self.df[self.df["dt"] == target_dt]
+        except Exception:
+            df = self.df[self.df["report_date"] == date_str]
         if df.empty:
             return []
-            
-        # Group by source file to show extraction quality and location
-        sources = df.groupby(['filename', 'page']).agg({
-            'extraction': 'mean',
-            'semantic': 'mean'
-        }).reset_index()
-        
-        return sources.to_dict(orient='records')
+        sources = (
+            df.groupby(["filename", "page"])
+            .agg(extraction=("extraction", "mean"), semantic=("semantic", "mean"))
+            .reset_index()
+        )
+        return sources.to_dict(orient="records")
+
 
 # ── LLM Chat ──────────────────────────────────────────────────────────────────
 
 class ChatRequest(BaseModel):
     question: str
-    history: Optional[list[dict]] = []   # [{role, content}, ...]
+    history: Optional[list[dict]] = []
 
 
 class ChatEngine:
-    """
-    Natural-language Q&A over the crime dataset powered by Groq + Llama.
-
-    Builds a compact structured context summary once at init and reuses it
-    for all queries. Groq's inference is fast enough for interactive chat
-    without streaming.
-    """
-
     MODEL = "llama-3.3-70b-versatile"
 
     SYSTEM_PROMPT = """You are a crime data analyst for the Mumbai Crime Intelligence Platform.
@@ -336,7 +319,7 @@ Keep responses concise (3–6 sentences) unless the user asks for detail."""
 
     def __init__(self, df: pd.DataFrame):
         self.context = self._build_context(df) if not df.empty else "No data loaded."
-        self._client = None   # lazy-init so startup doesn't fail if key is missing
+        self._client = None
 
     @property
     def client(self):
@@ -344,15 +327,11 @@ Keep responses concise (3–6 sentences) unless the user asks for detail."""
             from groq import Groq
             api_key = os.environ.get("GROQ_API_KEY")
             if not api_key:
-                raise HTTPException(
-                    status_code=503,
-                    detail="GROQ_API_KEY not set. Export it in the environment to enable chat."
-                )
+                raise HTTPException(status_code=503, detail="GROQ_API_KEY not set.")
             self._client = Groq(api_key=api_key)
         return self._client
 
     def _build_context(self, df: pd.DataFrame) -> str:
-        """Builds a compact plaintext summary of the dataset for the LLM context."""
         lines = ["=== Mumbai Crime Dataset Summary ==="]
         lines.append("Coverage: monthly reports, 2018-01 through 2026-02 (90 months)")
         lines.append(f"Total records: {len(df[df['is_total'] == False])}")
@@ -360,54 +339,36 @@ Keep responses concise (3–6 sentences) unless the user asks for detail."""
 
         base = df[(df["dt"].notnull()) & (df["is_total"] == False)]
 
-        lines.append("--- Monthly Registered Crime Totals (all groups) ---")
-        monthly = (
-            base.groupby("dt")["registered"].sum()
-            .reset_index()
-            .sort_values("dt")
-        )
+        lines.append("--- Monthly Registered Crime Totals ---")
+        monthly = base.groupby("dt")["registered"].sum().reset_index().sort_values("dt")
         for _, row in monthly.iterrows():
             lines.append(f"  {row['dt'].strftime('%Y-%m')}: {int(row['registered'])}")
 
         lines.append("")
         lines.append("--- Per-Group Annual Totals ---")
-        annual = (
-            base.assign(year=base["dt"].dt.year)
-            .groupby(["year", "group"])["registered"]
-            .sum()
-            .reset_index()
-        )
+        annual = base.assign(year=base["dt"].dt.year).groupby(["year", "group"])["registered"].sum().reset_index()
         for year in sorted(annual["year"].unique()):
             lines.append(f"  {year}:")
-            yr = annual[annual["year"] == year].sort_values("registered", ascending=False)
-            for _, row in yr.iterrows():
+            for _, row in annual[annual["year"] == year].sort_values("registered", ascending=False).iterrows():
                 lines.append(f"    {row['group']}: {int(row['registered'])}")
 
         lines.append("")
-        lines.append("--- Detection Rates by Group (all-time avg %) ---")
-        det = base.groupby("group").agg(
-            registered=("registered", "sum"),
-            detected=("detected", "sum")
-        ).reset_index()
+        lines.append("--- Detection Rates by Group ---")
+        det = base.groupby("group").agg(registered=("registered", "sum"), detected=("detected", "sum")).reset_index()
         for _, row in det.iterrows():
             rate = (row["detected"] / row["registered"] * 100) if row["registered"] > 0 else 0
-            lines.append(f"  {row['group']}: {rate:.1f}% detection rate")
+            lines.append(f"  {row['group']}: {rate:.1f}%")
 
         lines.append("")
         lines.append("--- Key Structural Events ---")
-        lines.append("  2020-03 to 2020-06: COVID-19 lockdown (expect significant drops)")
-        lines.append("  2024-07 onwards: IPC replaced by BNS legal framework")
+        lines.append("  2020-03 to 2020-06: COVID-19 lockdown")
+        lines.append("  2024-07 onwards: IPC replaced by BNS")
 
         return "\n".join(lines)
 
     def ask(self, question: str, history: list[dict]) -> str:
         if not history:
-            messages = [
-                {
-                    "role": "user",
-                    "content": f"<data_context>\n{self.context}\n</data_context>\n\n{question}"
-                }
-            ]
+            messages = [{"role": "user", "content": f"<data_context>\n{self.context}\n</data_context>\n\n{question}"}]
         else:
             messages = list(history) + [{"role": "user", "content": question}]
 
@@ -415,7 +376,7 @@ Keep responses concise (3–6 sentences) unless the user asks for detail."""
             model=self.MODEL,
             messages=[{"role": "system", "content": self.SYSTEM_PROMPT}] + messages,
             max_tokens=512,
-            temperature=0.3,   # lower = more factual
+            temperature=0.3,
         )
         return response.choices[0].message.content
 
@@ -423,16 +384,6 @@ Keep responses concise (3–6 sentences) unless the user asks for detail."""
 # ── Forecasting ───────────────────────────────────────────────────────────────
 
 class ForecastEngine:
-    """
-    Pre-computes 6-month Prophet forecasts at startup for each crime group
-    that has sufficient history (≥ 24 months).
-
-    Changepoints are set explicitly for:
-      - 2020-03: COVID-19 lockdown
-      - 2024-07: IPC → BNS legal framework transition
-    """
-
-    # Groups with full or near-full 90-month series
     FORECASTABLE_GROUPS = ["Women Crimes", "Fatal Crimes", "Kidnapping", "Misc"]
     CHANGEPOINTS = ["2020-03-01", "2024-07-01"]
     HORIZON_MONTHS = 6
@@ -440,9 +391,20 @@ class ForecastEngine:
     def __init__(self, df: pd.DataFrame):
         self.forecasts: dict[str, list] = {}
         if df.empty or "dt" not in df.columns:
-            print("[ForecastEngine] Empty dataframe — skipping forecast build")
+            print("[Forecast] Empty dataframe — skipping")
             return
+
+        # Try loading pre-computed from DB first
+        cached = db.get_forecasts()
+        if cached:
+            self.forecasts = cached
+            print(f"[Forecast] Loaded from DB: {list(cached.keys())}")
+            return
+
+        # Compute fresh and persist
         self._build(df)
+        if self.forecasts and db.DATABASE_URL:
+            db.store_forecasts(self.forecasts)
 
     def _build(self, df: pd.DataFrame):
         from prophet import Prophet
@@ -458,11 +420,9 @@ class ForecastEngine:
                 .rename(columns={"dt": "ds", "registered": "y"})
                 .sort_values("ds")
             )
-
             if len(gdf) < 24:
                 continue
 
-            # Clip outliers at 3-sigma before fitting
             mu, sigma = gdf["y"].mean(), gdf["y"].std()
             gdf["y"] = gdf["y"].clip(upper=mu + 3 * sigma)
 
@@ -470,7 +430,7 @@ class ForecastEngine:
 
             m = Prophet(
                 changepoints=valid_cps,
-                changepoint_prior_scale=0.15,   # moderate flexibility
+                changepoint_prior_scale=0.15,
                 seasonality_mode="additive",
                 yearly_seasonality=True,
                 weekly_seasonality=False,
@@ -479,33 +439,36 @@ class ForecastEngine:
             )
             m.fit(gdf)
 
-            future = m.make_future_dataframe(periods=self.HORIZON_MONTHS, freq="MS")
+            future   = m.make_future_dataframe(periods=self.HORIZON_MONTHS, freq="MS")
             forecast = m.predict(future)
 
-            # Return both historical fitted values and future predictions
             merged = forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].copy()
             merged["is_forecast"] = merged["ds"] > gdf["ds"].max()
-            merged["ds"] = merged["ds"].dt.strftime("%Y-%m")
-            merged["yhat"] = merged["yhat"].clip(lower=0).round().astype(int)
-            merged["yhat_lower"] = merged["yhat_lower"].clip(lower=0).round().astype(int)
-            merged["yhat_upper"] = merged["yhat_upper"].clip(lower=0).round().astype(int)
+            merged["ds"]          = merged["ds"].dt.strftime("%Y-%m")
+            merged["yhat"]        = merged["yhat"].clip(lower=0).round().astype(int)
+            merged["yhat_lower"]  = merged["yhat_lower"].clip(lower=0).round().astype(int)
+            merged["yhat_upper"]  = merged["yhat_upper"].clip(lower=0).round().astype(int)
 
             self.forecasts[group] = merged.to_dict(orient="records")
 
-        print(f"[ForecastEngine] Built forecasts for: {list(self.forecasts.keys())}")
+        print(f"[Forecast] Built: {list(self.forecasts.keys())}")
 
     def get(self, group: str | None = None) -> dict:
         if group:
-            if group not in self.forecasts:
-                return {}
-            return {group: self.forecasts[group]}
+            return {group: self.forecasts[group]} if group in self.forecasts else {}
         return self.forecasts
 
 
-# Singleton Store
-store = CrimeDataStore()
+# ── Startup ───────────────────────────────────────────────────────────────────
+
+db.init_schema()
+
+store          = CrimeDataStore()
 forecast_engine = ForecastEngine(store.df)
-chat_engine = ChatEngine(store.df)
+chat_engine    = ChatEngine(store.df)
+
+
+# ── API endpoints ─────────────────────────────────────────────────────────────
 
 @app.get("/api/trends")
 def get_trends(domain: str = None, group: str = None):
@@ -533,43 +496,93 @@ def get_lineage(date: str):
 
 @app.get("/api/forecast")
 def get_forecast(group: str = None):
-    """
-    Returns Prophet-generated 6-month forecasts with 80% confidence intervals.
-    Includes historical fitted values so the frontend can render a continuous line.
-
-    Query params:
-      group — one of: Women Crimes, Fatal Crimes, Kidnapping, Misc
-              (omit to get all groups)
-    """
     result = forecast_engine.get(group)
     if group and not result:
         raise HTTPException(
             status_code=404,
-            detail=f"No forecast for group '{group}'. "
-                   f"Available: {list(forecast_engine.forecasts.keys())}"
+            detail=f"No forecast for '{group}'. Available: {list(forecast_engine.forecasts.keys())}"
         )
     return result
 
+@app.get("/api/forecast/groups")
+def get_forecast_groups():
+    return {"groups": list(forecast_engine.forecasts.keys())}
+
+@app.get("/api/health")
+def health():
+    return {
+        "status": "ok",
+        "records": len(store.df),
+        "forecast_groups": len(forecast_engine.forecasts),
+        "db_connected": db.DATABASE_URL is not None,
+    }
+
+
+# ── Export endpoints ──────────────────────────────────────────────────────────
+
+@app.get("/api/export/json")
+def export_json():
+    path = PROJECT_ROOT / "data/processed/crime.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="crime.json not found")
+    return FileResponse(
+        path=str(path),
+        media_type="application/json",
+        filename="mumbai_crime_data.json",
+    )
+
+@app.get("/api/export/csv")
+def export_csv():
+    df = store.df[store.df["is_total"] == False].copy()
+    df = df[["report_date", "crime_type", "canonical_type", "domain", "group",
+             "registered", "detected", "registered_ytd", "detected_ytd",
+             "filename", "extraction", "semantic"]]
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(df.columns.tolist())
+    for row in df.itertuples(index=False):
+        writer.writerow(row)
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=mumbai_crime_data.csv"},
+    )
+
+@app.get("/api/export/quality")
+def export_quality():
+    path = PROJECT_ROOT / "data/processed/quality.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="quality.json not found")
+
+    with open(path) as f:
+        data = json.load(f)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    if data:
+        writer.writerow(data[0].keys())
+        for row in data:
+            writer.writerow(row.values())
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=mumbai_crime_quality.csv"},
+    )
+
+
+# ── Chat ──────────────────────────────────────────────────────────────────────
+
 @app.post("/api/chat")
 def chat(req: ChatRequest):
-    """
-    Natural-language Q&A endpoint.
-
-    Body: { "question": "...", "history": [{role, content}, ...] }
-    Returns: { "answer": "...", "history": [...updated history...] }
-
-    Pass `history` from the previous response back on each follow-up
-    to maintain a multi-turn conversation.
-    """
     answer = chat_engine.ask(req.question, req.history or [])
-
-    # Build updated history for the client to pass back next turn
     if not req.history:
         updated_history = [
-            {
-                "role": "user",
-                "content": f"<data_context>\n{chat_engine.context}\n</data_context>\n\n{req.question}"
-            },
+            {"role": "user", "content": f"<data_context>\n{chat_engine.context}\n</data_context>\n\n{req.question}"},
             {"role": "assistant", "content": answer},
         ]
     else:
@@ -577,38 +590,37 @@ def chat(req: ChatRequest):
             {"role": "user", "content": req.question},
             {"role": "assistant", "content": answer},
         ]
-
     return {"answer": answer, "history": updated_history}
 
 
-@app.get("/api/forecast/groups")
-def get_forecast_groups():
-    """Lists which groups have a precomputed forecast."""
-    return {"groups": list(forecast_engine.forecasts.keys())}
-
-@app.get("/api/health")
-def health():
-    return {"status": "ok", "records": len(store.df), "forecast_groups": len(forecast_engine.forecasts)}
-
-
-# ── Data reload + pipeline status ─────────────────────────────────────────────
+# ── Reload + Pipeline ─────────────────────────────────────────────────────────
 
 @app.post("/api/reload")
 def reload_data():
-    """
-    Hot-reload crime.json without restarting the server.
-    Called automatically by the pipeline after a successful run.
-    """
+    """Hot-reload: re-seed DB from crime.json, rebuild forecasts + anomalies."""
     global store, forecast_engine, chat_engine
-    store          = CrimeDataStore()
+
+    if db.DATABASE_URL:
+        db.clear_records()
+        db.seed_from_json("data/processed/crime.json")
+        # Clear cached ML results so they're recomputed on next request
+        db.store_anomalies([])
+        db.store_forecasts({})
+
+    store           = CrimeDataStore()
     forecast_engine = ForecastEngine(store.df)
-    chat_engine    = ChatEngine(store.df)
+    chat_engine     = ChatEngine(store.df)
+
     return {"status": "reloaded", "records": len(store.df), "timestamp": datetime.utcnow().isoformat()}
 
 
 @app.get("/api/pipeline/status")
 def pipeline_status():
-    """Returns the last 10 pipeline run logs."""
+    # Try DB first, fall back to JSON log
+    runs = db.get_pipeline_runs(10)
+    if runs:
+        return {"runs": runs}
+
     log_path = PROJECT_ROOT / "data/pipeline_log.json"
     if not log_path.exists():
         return {"runs": []}
@@ -621,48 +633,27 @@ def pipeline_status():
 
 @app.post("/api/pipeline/trigger")
 def trigger_pipeline():
-    """
-    Manually trigger the full pipeline from the API.
-    Runs in a background thread so the request returns immediately.
-    """
     import threading
-    from pipeline import run_pipeline  # type: ignore  (on sys.path via PROJECT_ROOT/src/ingestion)
+    from pipeline import run_pipeline  # type: ignore
 
-    def _run():
-        run_pipeline(trigger="api")
-
-    t = threading.Thread(target=_run, daemon=True)
-    t.start()
+    threading.Thread(target=lambda: run_pipeline(trigger="api"), daemon=True).start()
     return {"status": "pipeline started", "message": "Check /api/pipeline/status for progress."}
 
 
-# ── Scheduler (daily auto-update) ────────────────────────────────────────────
+# ── Scheduler ─────────────────────────────────────────────────────────────────
 
 def _start_scheduler():
-    """
-    Start APScheduler to run the full pipeline once daily at 03:00 UTC.
-    Only starts if ENABLE_SCHEDULER=true in the environment.
-    """
     if os.environ.get("ENABLE_SCHEDULER", "false").lower() != "true":
         return
-
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
         from pipeline import run_pipeline  # type: ignore
         scheduler = BackgroundScheduler(timezone="UTC")
-        scheduler.add_job(
-            lambda: run_pipeline(trigger="scheduler"),
-            trigger="cron",
-            hour=3,
-            minute=0,
-            id="daily_pipeline",
-        )
+        scheduler.add_job(lambda: run_pipeline(trigger="scheduler"), "cron", hour=3, minute=0)
         scheduler.start()
-        print("[Scheduler] Daily pipeline scheduled at 03:00 UTC.")
-    except ImportError:
-        print("[Scheduler] apscheduler not installed — skipping.")
+        print("[Scheduler] Daily pipeline at 03:00 UTC")
     except Exception as e:
-        print(f"[Scheduler] Failed to start: {e}")
+        print(f"[Scheduler] Failed: {e}")
 
 
 _start_scheduler()
