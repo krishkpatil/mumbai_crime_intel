@@ -9,12 +9,13 @@ import { TrendsView } from '@/components/Views/TrendsView';
 import { ForecastView } from '@/components/Views/ForecastView';
 import { AnomaliesView } from '@/components/Views/AnomaliesView';
 import { ChatView } from '@/components/Views/ChatView';
+import { DataView } from '@/components/Views/DataView';
 import {
   fetchTrends, fetchCategories, fetchAnomalies, fetchInsights,
   TrendData, CategoryData, Anomaly, Insight,
 } from '@/lib/api';
 
-export type Tab = 'overview' | 'trends' | 'forecast' | 'anomalies' | 'chat';
+export type Tab = 'overview' | 'trends' | 'forecast' | 'anomalies' | 'chat' | 'data';
 
 type StepStatus = 'waiting' | 'loading' | 'done' | 'error';
 interface Step { label: string; detail: string; status: StepStatus; }
@@ -149,6 +150,7 @@ export default function Dashboard() {
         {activeTab === 'forecast' && <ForecastView />}
         {activeTab === 'anomalies' && <AnomaliesView anomalies={anomalies} />}
         {activeTab === 'chat' && <ChatView />}
+        {activeTab === 'data' && <DataView />}
       </main>
 
       <Footer />

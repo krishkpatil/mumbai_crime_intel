@@ -102,3 +102,55 @@ export const sendChat = async (
   });
   return resp.json();
 };
+
+// ── Data tab ──────────────────────────────────────────────────────────────────
+
+export interface QualityRecord {
+  filename: string;
+  report_date: string;
+  layout: string;
+  extraction_score: number;
+  semantic_score: number;
+  status: 'SUCCESS' | 'ERROR';
+}
+
+export interface PipelineRun {
+  started_at: string;
+  finished_at: string | null;
+  trigger: string;
+  new_pdfs: number;
+  status: string;
+  error: string | null;
+  records_total: number;
+}
+
+export const fetchQuality = async (): Promise<QualityRecord[]> => {
+  const resp = await fetch(`${BASE_URL}/quality`);
+  if (!resp.ok) return [];
+  return resp.json();
+};
+
+export const fetchPipelineStatus = async (): Promise<PipelineRun[]> => {
+  const resp = await fetch(`${BASE_URL}/pipeline/status`);
+  if (!resp.ok) return [];
+  const data = await resp.json();
+  return data.runs ?? [];
+};
+
+export const triggerPipeline = async (): Promise<boolean> => {
+  const resp = await fetch(`${BASE_URL}/pipeline/trigger`, { method: 'POST' });
+  return resp.ok;
+};
+
+export const fetchHealth = async (): Promise<{ records: number } | null> => {
+  const resp = await fetch(`${BASE_URL}/health`);
+  if (!resp.ok) return null;
+  return resp.json();
+};
+
+export const exportUrls = {
+  json:    `${BASE_URL}/export/json`,
+  csv:     `${BASE_URL}/export/csv`,
+  quality: `${BASE_URL}/export/quality`,
+  pdf: (filename: string) => `${BASE_URL}/pdfs/${encodeURIComponent(filename)}`,
+};

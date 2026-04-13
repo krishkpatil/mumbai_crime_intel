@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { BarChart2, TrendingUp, AlertTriangle, MessageSquare, LayoutDashboard, Menu, X, Shield } from 'lucide-react';
+import { BarChart2, TrendingUp, AlertTriangle, MessageSquare, LayoutDashboard, Menu, X, Shield, Database } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Tab } from '@/app/page';
 
@@ -11,6 +11,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'forecast',   label: 'Forecast',   icon: <TrendingUp className="w-4 h-4" /> },
   { id: 'anomalies',  label: 'Anomalies',  icon: <AlertTriangle className="w-4 h-4" /> },
   { id: 'chat',       label: 'Ask AI',     icon: <MessageSquare className="w-4 h-4" /> },
+  { id: 'data',       label: 'Data',       icon: <Database className="w-4 h-4" /> },
 ];
 
 interface NavbarProps {

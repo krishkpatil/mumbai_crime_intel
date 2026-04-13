@@ -576,6 +576,23 @@ def export_quality():
     )
 
 
+@app.get("/api/quality")
+def get_quality():
+    path = PROJECT_ROOT / "data/processed/quality.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="quality.json not found")
+    with open(path) as f:
+        return json.load(f)
+
+
+@app.get("/api/pdfs/{filename}")
+def get_pdf(filename: str):
+    pdf_path = PROJECT_ROOT / "data" / "raw" / "pdfs" / Path(filename).name
+    if not pdf_path.exists():
+        raise HTTPException(status_code=404, detail="PDF not available in this deployment")
+    return FileResponse(str(pdf_path), media_type="application/pdf", filename=filename)
+
+
 # ── Chat ──────────────────────────────────────────────────────────────────────
 
 @app.post("/api/chat")
