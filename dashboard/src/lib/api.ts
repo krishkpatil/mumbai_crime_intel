@@ -148,6 +148,25 @@ export const fetchHealth = async (): Promise<{ records: number } | null> => {
   return resp.json();
 };
 
+export interface PipelineProgressData {
+  running: boolean;
+  phase: string | null;
+  current_file: string | null;
+  files_done: number;
+  files_total: number;
+  new_pdfs_found: number;
+  log: string[];
+  started_at: string | null;
+  error: string | null;
+  stale?: boolean;
+}
+
+export const fetchPipelineProgress = async (): Promise<PipelineProgressData | null> => {
+  const resp = await fetch(`${BASE_URL}/pipeline/progress`);
+  if (!resp.ok) return null;
+  return resp.json();
+};
+
 export const exportUrls = {
   json:    `${BASE_URL}/export/json`,
   csv:     `${BASE_URL}/export/csv`,

@@ -3,9 +3,13 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   fetchQuality, fetchPipelineStatus, fetchHealth, triggerPipeline, exportUrls,
-  QualityRecord, PipelineRun,
+  fetchPipelineProgress,
+  QualityRecord, PipelineRun, PipelineProgressData,
 } from '@/lib/api';
-import { Database, Download, Play, CheckCircle, XCircle, Clock, FileText } from 'lucide-react';
+import {
+  Database, Download, Play, CheckCircle, XCircle, Clock,
+  FileText, Globe, Layers, RefreshCw,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -33,6 +37,17 @@ const formatTs = (ts: string | null): string => {
     return ts;
   }
 };
+
+// ── Pipeline phase config ─────────────────────────────────────────────────────
+
+const PIPELINE_PHASES = [
+  { id: 'scraping',       label: 'Scraping',       icon: <Globe className="w-3 h-3" /> },
+  { id: 'processing',     label: 'Processing',      icon: <FileText className="w-3 h-3" /> },
+  { id: 'canonicalizing', label: 'Canonicalizing',  icon: <Layers className="w-3 h-3" /> },
+  { id: 'reloading',      label: 'Reloading',       icon: <RefreshCw className="w-3 h-3" /> },
+];
+
+const PHASE_ORDER = PIPELINE_PHASES.map(p => p.id);
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -71,6 +86,91 @@ const ScoreBar: React.FC<{ score: number }> = ({ score }) => (
   </div>
 );
 
+const PipelineProgressPanel: React.FC<{ progress: PipelineProgressData | null }> = ({ progress }) => {
+  const currentPhaseIdx = progress?.phase ? PHASE_ORDER.indexOf(progress.phase) : -1;
+  const pct = progress && progress.files_total > 0
+    ? Math.round((progress.files_done / progress.files_total) * 100)
+    : 0;
+
+  return (
+    <div className="border-t border-[#E2E2E2] bg-[#FAFAFA] p-5">
+      {/* Phase stepper */}
+      <div className="flex items-center gap-1 mb-4 flex-wrap">
+        {PIPELINE_PHASES.map((phase, i) => {
+          const isActive  = progress?.phase === phase.id;
+          const isDone    = currentPhaseIdx > i;
+          const isWaiting = currentPhaseIdx < i && currentPhaseIdx !== -1;
+          return (
+            <React.Fragment key={phase.id}>
+              <div className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-data font-black uppercase tracking-widest',
+                isActive  ? 'bg-[#09090B] text-white' :
+                isDone    ? 'bg-emerald-50 text-emerald-700' :
+                isWaiting ? 'text-slate-300' : 'text-slate-300'
+              )}>
+                {isDone
+                  ? <CheckCircle className="w-3 h-3" />
+                  : phase.icon
+                }
+                {phase.label}
+                {isActive && phase.id === 'processing' && progress && progress.files_total > 0
+                  ? ` ${progress.files_done}/${progress.files_total}`
+                  : ''}
+              </div>
+              {i < PIPELINE_PHASES.length - 1 && (
+                <span className="text-slate-300 text-xs select-none">›</span>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+
+      {/* Progress bar */}
+      {progress && progress.files_total > 0 && (
+        <div className="mb-4">
+          <div className="flex justify-between text-[10px] text-slate-400 mb-1.5">
+            <span className="truncate max-w-[65%] font-mono">{progress.current_file || ''}</span>
+            <span className="tabular-nums shrink-0">
+              {progress.files_done} / {progress.files_total} ({pct}%)
+            </span>
+          </div>
+          <div className="h-1 bg-slate-200">
+            <div
+              className="h-full bg-[#09090B] transition-[width] duration-500"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Log */}
+      {progress && progress.log.length > 0 && (
+        <div className="bg-[#09090B] p-3 max-h-32 overflow-y-auto space-y-0.5">
+          {[...progress.log].slice(-8).map((line, i) => (
+            <div key={i} className="font-mono text-[10px] text-slate-400 leading-relaxed">{line}</div>
+          ))}
+        </div>
+      )}
+
+      {/* Stale warning */}
+      {progress?.stale && (
+        <div className="mt-3 flex items-center gap-1.5 text-[10px] text-yellow-600">
+          <Clock className="w-3 h-3 shrink-0" />
+          Pipeline may have been interrupted — last heartbeat &gt;3 min ago
+        </div>
+      )}
+
+      {/* Error */}
+      {progress?.phase === 'error' && progress.error && (
+        <div className="mt-3 flex items-center gap-1.5 text-[10px] text-rose-600">
+          <XCircle className="w-3 h-3 shrink-0" />
+          {progress.error}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export const DataView: React.FC = () => {
@@ -81,6 +181,7 @@ export const DataView: React.FC = () => {
   const [filter, setFilter]                   = useState<'All' | 'SUCCESS' | 'ERROR'>('All');
   const [triggering, setTriggering]           = useState(false);
   const [pipelineRunning, setPipelineRunning] = useState(false);
+  const [progress, setProgress]               = useState<PipelineProgressData | null>(null);
   const [pdfsAvailable, setPdfsAvailable]     = useState<boolean | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -91,17 +192,24 @@ export const DataView: React.FC = () => {
     }
   }, []);
 
+  const refreshData = useCallback(() => {
+    Promise.all([fetchQuality(), fetchPipelineStatus(), fetchHealth()])
+      .then(([q, r, h]) => { setQuality(q); setRuns(r); setHealth(h); });
+  }, []);
+
   const startPolling = useCallback(() => {
     if (pollRef.current) return;
     pollRef.current = setInterval(async () => {
-      const r = await fetchPipelineStatus();
-      setRuns(r);
-      if (r[0]?.status !== 'running') {
+      const p = await fetchPipelineProgress();
+      if (!p) return;
+      setProgress(p);
+      if (!p.running) {
         stopPolling();
         setPipelineRunning(false);
+        refreshData();
       }
-    }, 4000);
-  }, [stopPolling]);
+    }, 2000);
+  }, [stopPolling, refreshData]);
 
   useEffect(() => {
     Promise.all([fetchQuality(), fetchPipelineStatus(), fetchHealth()])
@@ -132,6 +240,7 @@ export const DataView: React.FC = () => {
     setTriggering(false);
     if (ok) {
       setPipelineRunning(true);
+      setProgress(null);
       startPolling();
     }
   };
@@ -227,6 +336,11 @@ export const DataView: React.FC = () => {
           </button>
         </div>
 
+        {/* Live progress panel */}
+        {pipelineRunning && (
+          <PipelineProgressPanel progress={progress} />
+        )}
+
         {runs.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
@@ -255,7 +369,9 @@ export const DataView: React.FC = () => {
             </table>
           </div>
         ) : (
-          <p className="text-xs text-slate-400 text-center py-8">No pipeline runs recorded yet.</p>
+          !pipelineRunning && (
+            <p className="text-xs text-slate-400 text-center py-8">No pipeline runs recorded yet.</p>
+          )
         )}
       </div>
 

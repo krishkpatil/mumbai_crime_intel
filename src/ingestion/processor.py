@@ -193,36 +193,50 @@ def get_date_from_content(pdf_path):
         pass
     return None
 
-def process_pipeline():
+def process_pipeline(progress_cb=None):
     router = PdfRouter()
     fingerprinter = DataFingerprinter()
-    
+
     # Process both sources
     pdf_sources = [
         {"dir": "data/raw/pdfs", "method": "filename"},
         {"dir": "data/raw/pdfs/official_english", "method": "content"}
     ]
-    
+
     all_results = []
     quality_summary = []
     processed_hashes = set()
-    
+
+    # Pre-count total PDFs for progress reporting
+    _total = sum(
+        len([f for f in os.listdir(s["dir"]) if f.endswith('.pdf')])
+        for s in pdf_sources if os.path.exists(s["dir"])
+    )
+    _done = 0
+    if progress_cb:
+        progress_cb(files_total=_total, msg=f"Processing {_total} PDFs…")
+
     print(f"Starting Industrial Grade Ingestion Pipeline...")
-    
+
     for source in pdf_sources:
         s_dir = source["dir"]
         if not os.path.exists(s_dir): continue
-        
+
         pdf_files = [f for f in os.listdir(s_dir) if f.endswith('.pdf')]
         pdf_files.sort()
-        
+
         for pdf_file in pdf_files:
             pdf_path = os.path.join(s_dir, pdf_file)
             
             file_hash = fingerprinter.get_file_hash(pdf_path)
             if file_hash in processed_hashes: continue
             processed_hashes.add(file_hash)
-            
+
+            if progress_cb:
+                progress_cb(current_file=pdf_file, files_done=_done,
+                            msg=f"[{_done + 1}/{_total}] {pdf_file}")
+            _done += 1
+
             # Determine Date
             report_date = "Unknown"
             if source["method"] == "filename":

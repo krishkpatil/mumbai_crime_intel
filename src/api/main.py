@@ -17,7 +17,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 import db  # Postgres persistence layer (falls back gracefully when no DB)
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
@@ -38,6 +38,30 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── Pipeline progress (in-memory, reset on server restart) ───────────────────
+
+_pipeline_progress: dict = {
+    "running":       False,
+    "phase":         None,   # 'scraping'|'processing'|'canonicalizing'|'reloading'|'done'|'error'
+    "current_file":  None,
+    "files_done":    0,
+    "files_total":   0,
+    "new_pdfs_found": 0,
+    "log":           [],     # last 30 lines
+    "started_at":    None,
+    "error":         None,
+    "last_heartbeat": None,
+}
+
+
+def _progress_update(**kwargs):
+    msg = kwargs.pop("msg", None)
+    _pipeline_progress.update(kwargs)
+    _pipeline_progress["last_heartbeat"] = datetime.utcnow().isoformat()
+    if msg:
+        _pipeline_progress["log"] = (_pipeline_progress["log"] + [msg])[-30:]
+
 
 # ── Data layer ────────────────────────────────────────────────────────────────
 
@@ -593,6 +617,14 @@ def get_pdf(filename: str):
     return FileResponse(str(pdf_path), media_type="application/pdf", filename=filename)
 
 
+@app.head("/api/pdfs/{filename}")
+def head_pdf(filename: str):
+    pdf_path = PROJECT_ROOT / "data" / "raw" / "pdfs" / Path(filename).name
+    if not pdf_path.exists():
+        raise HTTPException(status_code=404)
+    return Response(status_code=200)
+
+
 # ── Chat ──────────────────────────────────────────────────────────────────────
 
 @app.post("/api/chat")
@@ -649,13 +681,46 @@ def pipeline_status():
         return {"runs": []}
 
 
+@app.get("/api/pipeline/progress")
+def pipeline_progress():
+    p = dict(_pipeline_progress)
+    # Stale detection: running but no heartbeat update for >3 min
+    if p["running"] and p.get("last_heartbeat"):
+        try:
+            delta = (datetime.utcnow() - datetime.fromisoformat(p["last_heartbeat"])).total_seconds()
+            if delta > 180:
+                p["stale"] = True
+        except Exception:
+            pass
+    return p
+
+
 @app.post("/api/pipeline/trigger")
 def trigger_pipeline():
+    if _pipeline_progress.get("running"):
+        return {"status": "already_running", "message": "Pipeline is already running."}
+
     import threading
     from pipeline import run_pipeline  # type: ignore
 
-    threading.Thread(target=lambda: run_pipeline(trigger="api"), daemon=True).start()
-    return {"status": "pipeline started", "message": "Check /api/pipeline/status for progress."}
+    _pipeline_progress.update({
+        "running": True, "phase": "starting", "current_file": None,
+        "files_done": 0, "files_total": 0, "new_pdfs_found": 0,
+        "log": [], "started_at": datetime.utcnow().isoformat(),
+        "error": None, "last_heartbeat": datetime.utcnow().isoformat(),
+    })
+
+    def _run():
+        try:
+            run_pipeline(trigger="api", progress_cb=_progress_update)
+        except Exception as e:
+            _progress_update(running=False, phase="error", error=str(e))
+            return
+        if _pipeline_progress.get("phase") != "error":
+            _progress_update(running=False, phase="done")
+
+    threading.Thread(target=_run, daemon=True).start()
+    return {"status": "pipeline started", "message": "Check /api/pipeline/progress for real-time updates."}
 
 
 # ── Scheduler ─────────────────────────────────────────────────────────────────

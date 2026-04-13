@@ -125,7 +125,7 @@ def scrape_new_pdfs() -> list[Path]:
 
 # ── step 2: process ────────────────────────────────────────────────────────────
 
-def run_processor() -> dict:
+def run_processor(progress_cb=None) -> dict:
     """Runs the PDF extraction pipeline, returns quality summary."""
     log.info("Running ingestion processor…")
 
@@ -136,7 +136,7 @@ def run_processor() -> dict:
     old_cwd = os.getcwd()
     os.chdir(PROJECT_ROOT)
     try:
-        process_pipeline()
+        process_pipeline(progress_cb=progress_cb)
     finally:
         os.chdir(old_cwd)
 
@@ -192,7 +192,7 @@ def reload_api() -> bool:
 
 # ── full pipeline ─────────────────────────────────────────────────────────────
 
-def run_pipeline(trigger: str = "manual") -> dict:
+def run_pipeline(trigger: str = "manual", progress_cb=None) -> dict:
     """
     Run the full MCIP pipeline.
     Returns a run-log entry dict.
@@ -213,16 +213,21 @@ def run_pipeline(trigger: str = "manual") -> dict:
 
     try:
         # 1. Scrape
+        if progress_cb: progress_cb(phase="scraping", msg="Probing Mumbai Police portal for new PDFs…")
         new_files = scrape_new_pdfs()
         result["new_pdfs"] = len(new_files)
+        if progress_cb: progress_cb(phase="processing", new_pdfs_found=len(new_files),
+                                    msg=f"Scrape complete. {len(new_files)} new PDF(s) found.")
 
         # 2. Always re-process (new PDFs or not — handles retries on partial runs)
-        result["processor"] = run_processor()
+        result["processor"] = run_processor(progress_cb=progress_cb)
 
         # 3. Canonicalize
+        if progress_cb: progress_cb(phase="canonicalizing", msg="Canonicalizing crime type clusters…")
         result["canon_clusters"] = run_canonicalizer()
 
         # 4. Reload
+        if progress_cb: progress_cb(phase="reloading", msg="Reloading API data store…")
         result["api_reloaded"] = reload_api()
 
         result["status"] = "success"
@@ -230,6 +235,7 @@ def run_pipeline(trigger: str = "manual") -> dict:
     except Exception as e:
         log.error(f"Pipeline failed: {e}", exc_info=True)
         result["error"] = str(e)
+        if progress_cb: progress_cb(phase="error", error=str(e), running=False, msg=f"Pipeline error: {e}")
 
     result["finished_at"] = datetime.now(timezone.utc).isoformat()
 
