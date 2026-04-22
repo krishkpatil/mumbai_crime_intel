@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { streamChat, ApiMessage, ChatMeta } from '@/lib/api';
 import { Send, Bot, User, Loader2, Zap, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { InlineChatChart } from '../Charts/InlineChatChart';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,7 @@ interface DisplayMessage {
   role: 'user' | 'assistant';
   content: string;
   tools?: string[];   // human-readable labels for tool badges
+  toolResults?: Array<{ name: string; data: any }>;
   streaming?: boolean;
   meta?: ChatMeta;
 }
@@ -59,6 +61,7 @@ export const ChatView: React.FC = () => {
   const bottomRef  = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLTextAreaElement>(null);
   const pendingTools = useRef<string[]>([]);
+  const pendingToolResults = useRef<Array<{ name: string; data: any }>>([]);
 
   // ── Session persistence ───────────────────────────────────────────────────
 
@@ -116,6 +119,7 @@ export const ChatView: React.FC = () => {
     setError('');
     setInput('');
     pendingTools.current = [];
+    pendingToolResults.current = [];
 
     setMessages(prev => [...prev, { role: 'user', content: question }]);
     setMessages(prev => [...prev, { role: 'assistant', content: '', streaming: true }]);
@@ -151,6 +155,11 @@ export const ChatView: React.FC = () => {
         });
       },
 
+      // onToolResult — store data for inline charts
+      (name, data) => {
+        pendingToolResults.current = [...pendingToolResults.current, { name, data }];
+      },
+
       // onDone — finalise message, persist history
       (answer, newHistory, meta) => {
         setMessages(prev => {
@@ -161,6 +170,7 @@ export const ChatView: React.FC = () => {
               role:      'assistant',
               content:   answer,
               tools:     pendingTools.current.length > 0 ? [...pendingTools.current] : undefined,
+              toolResults: pendingToolResults.current.length > 0 ? [...pendingToolResults.current] : undefined,
               streaming: false,
               meta,
             };
@@ -291,6 +301,15 @@ export const ChatView: React.FC = () => {
                   <span className="inline-block w-0.5 h-4 bg-slate-400 ml-0.5 animate-pulse align-middle" />
                 )}
               </div>
+
+              {/* Inline Charts */}
+              {msg.role === 'assistant' && !msg.streaming && msg.toolResults && msg.toolResults.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  {msg.toolResults.map((res, j) => (
+                    <InlineChatChart key={j} toolName={res.name} data={res.data} />
+                  ))}
+                </div>
+              )}
 
               {/* Meta footer — shown only on completed assistant messages */}
               {msg.role === 'assistant' && !msg.streaming && msg.meta && (

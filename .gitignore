@@ -1,11 +1,12 @@
 # Environment
 .env
-
+.
 # Python
 __pycache__/
 *.py[cod]
 venv/
-
+.venv/
+api_venv/
 # Data (raw PDFs are large; processed JSON is derived)
 data/raw/pdfs/
 

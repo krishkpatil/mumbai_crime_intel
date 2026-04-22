@@ -76,12 +76,17 @@ class CrimeDataStore:
 
     # ── Query methods ─────────────────────────────────────────────────────────
 
-    def get_summary(self, domain=None, group=None):
+    def get_summary(self, domain=None, group=None, year=None):
         df = self.df[(self.df["dt"].notnull()) & (self.df["is_total"] == False)]
         if domain:
             df = df[df["domain"] == domain]
         if group:
             df = df[df["group"] == group]
+        if year:
+            try:
+                df = df[df["dt"].dt.year == int(year)]
+            except (ValueError, TypeError):
+                pass
         trends = (
             df.groupby("dt")
             .agg(registered=("registered", "sum"), detected=("detected", "sum"))

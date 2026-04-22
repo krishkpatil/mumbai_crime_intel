@@ -49,6 +49,14 @@ async def chat_stream(req: ChatRequest):
                     + json.dumps({"type": "tool", "name": payload})
                     + "\n\n"
                 )
+            elif event_type == "tool_result":
+                yield (
+                    "data: "
+                    + json.dumps(
+                        {"type": "tool_result", "name": payload["name"], "data": payload["data"]}
+                    )
+                    + "\n\n"
+                )
             elif event_type == "token":
                 yield (
                     "data: "

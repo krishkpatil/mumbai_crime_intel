@@ -7,20 +7,23 @@ tools as many times as needed before streaming the final answer.
 
 import json
 import os
+from datetime import datetime
 from typing import AsyncGenerator
 
 import pandas as pd
 
 # ── System prompt ─────────────────────────────────────────────────────────────
 
-SYSTEM_PROMPT = """You are a crime data analyst for the Mumbai Crime Intelligence Platform.
+SYSTEM_PROMPT = f"""You are a crime data analyst for the Mumbai Crime Intelligence Platform.
 You have access to official Mumbai Police monthly crime statistics from 2018 to early 2026.
+Current Date: {datetime.now().strftime('%B %Y')}
 
 Always use the provided tools to retrieve precise data before answering.
 Never estimate or fabricate numbers — call a tool to get exact figures first.
 
 Rules:
 - Use tools proactively; one tool call per data need
+- When calling a tool, provide only the tool call, no preamble
 - Be specific: cite exact months, numbers, percentage changes
 - Keep responses concise (3–6 sentences) unless the user asks for detail
 - If a question is outside the dataset scope, say so clearly"""
@@ -36,20 +39,31 @@ def create_tools(store, forecast_engine):
     from langchain_core.tools import tool
 
     @tool
-    def query_trends(group: str | None = None, domain: str | None = None) -> str:
+    def query_trends(
+        group: str | None = None, domain: str | None = None, year: int | None = None
+    ) -> str:
         """Get monthly registered and detected crime totals.
 
         Optionally filter by crime group (e.g. 'Women Crimes', 'Cyber Crime',
         'Fatal Crimes', 'Theft & Robbery', 'Violent Crimes', 'White Collar',
-        'Kidnapping', 'Misc') or domain.
-        Returns the 36 most recent months to keep the context window small.
+        'Kidnapping', 'Misc'), domain, or a specific year.
+
+        If no year is provided, returns the 36 most recent months.
         """
         kwargs = {}
         if group:
             kwargs["group"] = group
         if domain:
             kwargs["domain"] = domain
+        if year:
+            kwargs["year"] = year
         data = store.get_summary(**kwargs)
+
+        # If filtered by year, return all available months for that year
+        if year:
+            return json.dumps(data)
+
+        # Default to last 36 months for broader trends
         return json.dumps(data[-36:])
 
     @tool
@@ -162,7 +176,7 @@ class ChatAgent:
             api_key=api_key,
             max_tokens=1024,
         )
-        llm_with_tools = llm.bind_tools(tools)
+        llm_with_tools = llm.bind_tools(tools, tool_choice="auto")
 
         async def agent_node(state: MessagesState):
             messages = [SystemMessage(content=SYSTEM_PROMPT)] + state["messages"]
@@ -236,6 +250,19 @@ class ChatAgent:
                 if key not in tool_calls_seen:
                     tool_calls_seen.add(key)
                     yield ("tool", name)
+
+            # Tool end — emit result event for inline visualizations
+            elif kind == "on_tool_end":
+                run_id = event.get("run_id", "")
+                if run_id not in tool_calls_seen:
+                    tool_calls_seen.add(run_id)
+                    output = event["data"].get("output", {})
+                    # output is a ToolMessage; .content is the JSON string result
+                    content = output.content if hasattr(output, "content") else str(output)
+                    try:
+                        yield ("tool_result", {"name": name, "data": json.loads(content)})
+                    except Exception:
+                        pass  # skip if not valid JSON
 
             # Streaming tokens from the agent's LLM call
             elif kind == "on_chat_model_stream":
