@@ -210,6 +210,7 @@ class ChatAgent:
 
         full_answer = ""
         tool_calls_seen: set[str] = set()
+        total_tokens = 0
         # Track whether any tools have fired in the current agent turn so we
         # can discard pre-tool preamble tokens (e.g. "Let me look that up…").
         pending_tool_in_current_turn = False
@@ -244,9 +245,19 @@ class ChatAgent:
                     full_answer += token
                     yield ("token", token)
 
+            # Accumulate token usage across all LLM calls (tool turns + final answer)
+            elif kind == "on_chat_model_end":
+                output = event["data"].get("output")
+                if output and hasattr(output, "usage_metadata") and output.usage_metadata:
+                    total_tokens += output.usage_metadata.get("total_tokens", 0)
+
         # Build clean history (only user/assistant turns)
         new_history = list(history) + [
             {"role": "user",      "content": question},
             {"role": "assistant", "content": full_answer},
         ]
-        yield ("done", {"answer": full_answer, "history": new_history})
+        yield ("done", {
+            "answer":  full_answer,
+            "history": new_history,
+            "tokens":  total_tokens or None,
+        })

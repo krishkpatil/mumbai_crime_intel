@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { streamChat, ApiMessage } from '@/lib/api';
+import { streamChat, ApiMessage, ChatMeta } from '@/lib/api';
 import { Send, Bot, User, Loader2, Zap, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -34,6 +34,7 @@ interface DisplayMessage {
   content: string;
   tools?: string[];   // human-readable labels for tool badges
   streaming?: boolean;
+  meta?: ChatMeta;
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -151,7 +152,7 @@ export const ChatView: React.FC = () => {
       },
 
       // onDone — finalise message, persist history
-      (answer, newHistory) => {
+      (answer, newHistory, meta) => {
         setMessages(prev => {
           const next = [...prev];
           const last = next[next.length - 1];
@@ -161,6 +162,7 @@ export const ChatView: React.FC = () => {
               content:   answer,
               tools:     pendingTools.current.length > 0 ? [...pendingTools.current] : undefined,
               streaming: false,
+              meta,
             };
           }
           return next;
@@ -289,6 +291,27 @@ export const ChatView: React.FC = () => {
                   <span className="inline-block w-0.5 h-4 bg-slate-400 ml-0.5 animate-pulse align-middle" />
                 )}
               </div>
+
+              {/* Meta footer — shown only on completed assistant messages */}
+              {msg.role === 'assistant' && !msg.streaming && msg.meta && (
+                <div className="flex items-center gap-3 text-[10px] text-slate-400 font-data tabular-nums px-0.5">
+                  <span title="Completed at">
+                    {new Date(msg.meta.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                  <span className="text-slate-200">·</span>
+                  <span title="Response time">
+                    {msg.meta.duration_ms < 1000
+                      ? `${msg.meta.duration_ms}ms`
+                      : `${(msg.meta.duration_ms / 1000).toFixed(1)}s`}
+                  </span>
+                  {msg.meta.tokens != null && (
+                    <>
+                      <span className="text-slate-200">·</span>
+                      <span title="Total tokens used">{msg.meta.tokens.toLocaleString()} tokens</span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             {msg.role === 'user' && (

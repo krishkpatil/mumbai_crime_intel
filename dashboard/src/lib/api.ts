@@ -114,14 +114,21 @@ export interface ApiMessage {
   content: string;
 }
 
+export interface ChatMeta {
+  timestamp: string;   // ISO string when done event arrived
+  duration_ms: number; // wall-clock ms from send → done
+  tokens: number | null;
+}
+
 export const streamChat = async (
   question: string,
   history: ApiMessage[],
   onToken: (chunk: string) => void,
   onTool:  (name: string) => void,
-  onDone:  (answer: string, history: ApiMessage[]) => void,
+  onDone:  (answer: string, history: ApiMessage[], meta: ChatMeta) => void,
   onError: (err: string) => void,
 ): Promise<void> => {
+  const startedAt = Date.now();
   try {
     const resp = await fetch(`${BASE_URL}/chat/stream`, {
       method:  'POST',
@@ -154,7 +161,11 @@ export const streamChat = async (
           const event = JSON.parse(line.slice(6));
           if (event.type === 'tool')  onTool(event.name);
           if (event.type === 'token') onToken(event.content);
-          if (event.type === 'done')  onDone(event.answer, event.history ?? []);
+          if (event.type === 'done')  onDone(event.answer, event.history ?? [], {
+            timestamp:   new Date().toISOString(),
+            duration_ms: Date.now() - startedAt,
+            tokens:      event.tokens ?? null,
+          });
         } catch { /* skip malformed events */ }
       }
     }
