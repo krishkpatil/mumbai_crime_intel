@@ -2,10 +2,21 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { streamChat, ApiMessage } from '@/lib/api';
-import { Send, Bot, User, Loader2, Zap } from 'lucide-react';
+import { Send, Bot, User, Loader2, Zap, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// ── Suggested prompts ─────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = 'mcip_chat_history';
+
+/** Maps LangChain tool function names → human-readable badge labels */
+const TOOL_LABELS: Record<string, string> = {
+  query_trends:     'Querying crime trends',
+  get_categories:   'Querying crime categories',
+  get_anomalies:    'Detecting anomalies',
+  get_forecast:     'Loading forecast data',
+  get_dataset_info: 'Getting dataset info',
+};
 
 const SUGGESTED = [
   'Which crime category grew most in 2023?',
@@ -21,7 +32,7 @@ const SUGGESTED = [
 interface DisplayMessage {
   role: 'user' | 'assistant';
   content: string;
-  tools?: string[];   // tool labels used to produce this answer
+  tools?: string[];   // human-readable labels for tool badges
   streaming?: boolean;
 }
 
@@ -42,15 +53,62 @@ export const ChatView: React.FC = () => {
   const [input,      setInput]      = useState('');
   const [streaming,  setStreaming]  = useState(false);
   const [error,      setError]      = useState('');
+  const [hydrated,   setHydrated]   = useState(false);
 
   const bottomRef  = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLTextAreaElement>(null);
-  // Track pending tools for the current response
   const pendingTools = useRef<string[]>([]);
+
+  // ── Session persistence ───────────────────────────────────────────────────
+
+  // Hydrate from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const { display, api } = JSON.parse(saved);
+        if (Array.isArray(display) && Array.isArray(api)) {
+          setMessages(display);
+          setApiHistory(api);
+        }
+      }
+    } catch {
+      // ignore malformed storage
+    }
+    setHydrated(true);
+  }, []);
+
+  // Persist whenever messages or apiHistory change (skip before hydration)
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ display: messages, api: apiHistory }),
+      );
+    } catch {
+      // quota exceeded or private browsing — ignore
+    }
+  }, [messages, apiHistory, hydrated]);
+
+  // ── Scroll ────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streaming]);
+
+  // ── New Chat ──────────────────────────────────────────────────────────────
+
+  const newChat = useCallback(() => {
+    if (streaming) return;
+    setMessages([]);
+    setApiHistory([]);
+    setError('');
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, [streaming]);
+
+  // ── Send ──────────────────────────────────────────────────────────────────
 
   const send = useCallback(async (question: string) => {
     if (!question.trim() || streaming) return;
@@ -58,9 +116,7 @@ export const ChatView: React.FC = () => {
     setInput('');
     pendingTools.current = [];
 
-    // Add user message
     setMessages(prev => [...prev, { role: 'user', content: question }]);
-    // Add empty assistant placeholder (will stream into it)
     setMessages(prev => [...prev, { role: 'assistant', content: '', streaming: true }]);
     setStreaming(true);
 
@@ -80,8 +136,9 @@ export const ChatView: React.FC = () => {
         });
       },
 
-      // onTool — record label, update last message's tools list
-      (label) => {
+      // onTool — map name → label, update badge list
+      (name) => {
+        const label = TOOL_LABELS[name] ?? name;
         pendingTools.current = [...pendingTools.current, label];
         setMessages(prev => {
           const next = [...prev];
@@ -93,8 +150,8 @@ export const ChatView: React.FC = () => {
         });
       },
 
-      // onDone — finalise message, update API history
-      (answer, msgs) => {
+      // onDone — finalise message, persist history
+      (answer, newHistory) => {
         setMessages(prev => {
           const next = [...prev];
           const last = next[next.length - 1];
@@ -108,7 +165,7 @@ export const ChatView: React.FC = () => {
           }
           return next;
         });
-        setApiHistory(msgs);
+        setApiHistory(newHistory);
         setStreaming(false);
         inputRef.current?.focus();
       },
@@ -116,7 +173,7 @@ export const ChatView: React.FC = () => {
       // onError
       (err) => {
         setError(err);
-        setMessages(prev => prev.slice(0, -1)); // Remove empty assistant bubble
+        setMessages(prev => prev.slice(0, -1));
         setStreaming(false);
         inputRef.current?.focus();
       },
@@ -130,15 +187,31 @@ export const ChatView: React.FC = () => {
     }
   };
 
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <div className="flex flex-col h-[calc(100vh-10rem)] max-h-[780px] min-h-[500px]">
 
       {/* Header */}
-      <div className="mb-4">
-        <h1 className="text-3xl font-display font-black tracking-tight text-[#09090B]">Ask AI</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Ask anything about Mumbai crime data. Powered by Llama 3.3 70B · tool-augmented · streaming.
-        </p>
+      <div className="mb-4 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-display font-black tracking-tight text-[#09090B]">Ask AI</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Ask anything about Mumbai crime data. Powered by Llama 3.3 70B · tool-augmented · streaming.
+          </p>
+        </div>
+
+        {messages.length > 0 && (
+          <button
+            onClick={newChat}
+            disabled={streaming}
+            title="New chat"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-500 border border-[#E2E2E2] hover:border-[#09090B] hover:text-[#09090B] transition-colors disabled:opacity-40 shrink-0 mt-1"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            New chat
+          </button>
+        )}
       </div>
 
       {/* Message area */}

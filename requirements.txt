@@ -21,6 +21,11 @@ scikit-learn
 sentence-transformers
 groq
 
+# LangChain / LangGraph
+langchain-core
+langchain-groq
+langgraph
+
 # Visualization/Data
 jinja2
 openpyxl

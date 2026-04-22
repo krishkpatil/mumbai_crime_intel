@@ -1,86 +1,17 @@
 """
-ChatEngine — Groq LLM with tool use and streaming.
+ChatAgent — LangGraph agentic loop with LangChain @tool decorators.
 
-Instead of pre-stuffing a massive context string, the LLM calls tools to
-retrieve precise data on demand, then streams its answer token by token.
+Uses a StateGraph(MessagesState) with a ToolNode so the LLM can call
+tools as many times as needed before streaming the final answer.
 """
 
 import json
 import os
-from typing import Generator
+from typing import AsyncGenerator
 
 import pandas as pd
-from fastapi import HTTPException
 
-# ── Tool definitions ──────────────────────────────────────────────────────────
-
-TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "query_trends",
-            "description": (
-                "Get monthly registered and detected crime totals. "
-                "Optionally filter by crime group (e.g. 'Women Crimes', 'Cyber Crime', "
-                "'Fatal Crimes', 'Theft & Robbery', 'Violent Crimes', 'White Collar', "
-                "'Kidnapping', 'Misc') or domain."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "group":  {"type": "string", "description": "Crime group name"},
-                    "domain": {"type": "string", "description": "Crime domain name"},
-                },
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_categories",
-            "description": "Get total registered/detected crimes broken down by category. Optional year filter.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "year": {"type": "integer", "description": "Year to filter (e.g. 2020)"},
-                },
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_anomalies",
-            "description": "Get statistically detected anomalies and structural change points (Isolation Forest + CUSUM).",
-            "parameters": {"type": "object", "properties": {}},
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_forecast",
-            "description": (
-                "Get 6-month Prophet forecast for a crime group. "
-                "Available groups: 'Women Crimes', 'Fatal Crimes', 'Kidnapping', 'Misc'."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "group": {"type": "string", "description": "Crime group to forecast"},
-                },
-                "required": ["group"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_dataset_info",
-            "description": "Get dataset overview: date range, total records, available crime groups.",
-            "parameters": {"type": "object", "properties": {}},
-        },
-    },
-]
+# ── System prompt ─────────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """You are a crime data analyst for the Mumbai Crime Intelligence Platform.
 You have access to official Mumbai Police monthly crime statistics from 2018 to early 2026.
@@ -95,162 +26,227 @@ Rules:
 - If a question is outside the dataset scope, say so clearly"""
 
 
-# ── Engine ────────────────────────────────────────────────────────────────────
+# ── Tool factory (avoids circular imports with dependencies.py) ───────────────
 
-class ChatEngine:
+def create_tools(store, forecast_engine):
+    """
+    Build and return a list of LangChain @tool instances wired to the live
+    data store and forecast engine.  Called once inside ChatAgent.__init__.
+    """
+    from langchain_core.tools import tool
+
+    @tool
+    def query_trends(group: str | None = None, domain: str | None = None) -> str:
+        """Get monthly registered and detected crime totals.
+
+        Optionally filter by crime group (e.g. 'Women Crimes', 'Cyber Crime',
+        'Fatal Crimes', 'Theft & Robbery', 'Violent Crimes', 'White Collar',
+        'Kidnapping', 'Misc') or domain.
+        Returns the 36 most recent months to keep the context window small.
+        """
+        kwargs = {}
+        if group:
+            kwargs["group"] = group
+        if domain:
+            kwargs["domain"] = domain
+        data = store.get_summary(**kwargs)
+        return json.dumps(data[-36:])
+
+    @tool
+    def get_categories(year: int | None = None) -> str:
+        """Get total registered/detected crimes broken down by category.
+
+        Optional year filter (e.g. 2023).  Returns every category with
+        its registered and detected totals.
+        """
+        data = store.get_categories(year=year)
+        return json.dumps(data)
+
+    @tool
+    def get_anomalies() -> str:
+        """Get statistically detected anomalies and structural change points.
+
+        Uses Isolation Forest + CUSUM algorithms.  Returns date, type,
+        severity, detail text, and isolation score for each anomaly.
+        """
+        return json.dumps(store.get_anomalies())
+
+    @tool
+    def get_forecast(group: str) -> str:
+        """Get 6-month Prophet forecast for a crime group.
+
+        Available groups: 'Women Crimes', 'Fatal Crimes', 'Kidnapping', 'Misc'.
+        Returns only future forecast points (is_forecast=True) with
+        yhat, yhat_lower, yhat_upper confidence bands.
+        """
+        result = forecast_engine.get(group)
+        if group in result:
+            result[group] = [r for r in result[group] if r.get("is_forecast")]
+        return json.dumps(result)
+
+    @tool
+    def get_dataset_info() -> str:
+        """Get dataset overview: date range, total records, available crime groups.
+
+        Call this first when you are unsure what data is available or what
+        crime groups / categories the dataset contains.
+        """
+        df = store.df
+        groups = (
+            sorted(df["group"].dropna().unique().tolist())
+            if "group" in df.columns
+            else []
+        )
+        date_range = ""
+        if "dt" in df.columns:
+            valid = df["dt"].dropna()
+            if not valid.empty:
+                date_range = (
+                    f"{valid.min().strftime('%Y-%m')} to {valid.max().strftime('%Y-%m')}"
+                )
+        total = (
+            len(df[df["is_total"] == False])
+            if "is_total" in df.columns
+            else len(df)
+        )
+        return json.dumps(
+            {
+                "total_records": total,
+                "date_range": date_range,
+                "crime_groups": groups,
+                "forecastable_groups": [
+                    "Women Crimes",
+                    "Fatal Crimes",
+                    "Kidnapping",
+                    "Misc",
+                ],
+            }
+        )
+
+    return [query_trends, get_categories, get_anomalies, get_forecast, get_dataset_info]
+
+
+# ── ChatAgent ─────────────────────────────────────────────────────────────────
+
+class ChatAgent:
     MODEL = "llama-3.3-70b-versatile"
 
     def __init__(self, df: pd.DataFrame, store=None, forecast_engine=None):
-        self._client       = None
-        self._store        = store
-        self._forecast_eng = forecast_engine
+        self._store = store
+        self._forecast_engine = forecast_engine
+        self._graph = None   # built lazily on first use
 
-    # ── Groq client (lazy) ────────────────────────────────────────────────────
+    # ── Lazy graph construction ───────────────────────────────────────────────
 
     @property
-    def client(self):
-        if self._client is None:
-            from groq import Groq
-            api_key = os.environ.get("GROQ_API_KEY")
-            if not api_key:
-                raise HTTPException(status_code=503, detail="GROQ_API_KEY not set.")
-            self._client = Groq(api_key=api_key)
-        return self._client
+    def graph(self):
+        if self._graph is None:
+            self._graph = self._build_graph()
+        return self._graph
 
-    # ── Tool execution ────────────────────────────────────────────────────────
+    def _build_graph(self):
+        from langchain_groq import ChatGroq
+        from langchain_core.messages import SystemMessage
+        from langgraph.graph import StateGraph, MessagesState, END
+        from langgraph.prebuilt import ToolNode, tools_condition
 
-    def _execute_tool(self, name: str, args: dict) -> str:
-        """Run a tool call against the live data store and return JSON string."""
-        try:
-            if name == "query_trends":
-                data = self._store.get_summary(**{k: v for k, v in args.items() if k in ("group", "domain")})
-                # Cap to 36 months so we don't blow the context window
-                return json.dumps(data[-36:])
+        api_key = os.environ.get("GROQ_API_KEY")
+        if not api_key:
+            raise RuntimeError("GROQ_API_KEY not set.")
 
-            elif name == "get_categories":
-                year = args.get("year")
-                data = self._store.get_categories(year=year)
-                return json.dumps(data)
+        tools = create_tools(self._store, self._forecast_engine)
 
-            elif name == "get_anomalies":
-                return json.dumps(self._store.get_anomalies())
-
-            elif name == "get_forecast":
-                group = args.get("group", "")
-                result = self._forecast_eng.get(group)
-                # Return only forecast points (is_forecast=True) to keep payload small
-                if group in result:
-                    result[group] = [r for r in result[group] if r.get("is_forecast")]
-                return json.dumps(result)
-
-            elif name == "get_dataset_info":
-                df = self._store.df
-                groups = sorted(df["group"].dropna().unique().tolist()) if "group" in df.columns else []
-                date_range = ""
-                if "dt" in df.columns:
-                    valid = df["dt"].dropna()
-                    if not valid.empty:
-                        date_range = f"{valid.min().strftime('%Y-%m')} to {valid.max().strftime('%Y-%m')}"
-                total = len(df[df["is_total"] == False]) if "is_total" in df.columns else len(df)
-                return json.dumps({
-                    "total_records":        total,
-                    "date_range":           date_range,
-                    "crime_groups":         groups,
-                    "forecastable_groups":  ["Women Crimes", "Fatal Crimes", "Kidnapping", "Misc"],
-                })
-
-            else:
-                return json.dumps({"error": f"Unknown tool: {name}"})
-
-        except Exception as e:
-            return json.dumps({"error": str(e)})
-
-    # ── Message builder ───────────────────────────────────────────────────────
-
-    def _build_messages(self, question: str, history: list) -> list:
-        return list(history) + [{"role": "user", "content": question}]
-
-    # ── Agentic tool loop (shared by ask + stream) ────────────────────────────
-
-    def _run_tool_loop(self, messages: list):
-        """
-        Run tool calls until the model stops requesting them.
-        Mutates `messages` in place; yields ('tool', name) for each call.
-        Returns when no more tool calls are needed.
-        """
-        for _ in range(4):
-            resp = self.client.chat.completions.create(
-                model=self.MODEL,
-                messages=[{"role": "system", "content": SYSTEM_PROMPT}] + messages,
-                tools=TOOLS,
-                tool_choice="auto",
-                max_tokens=256,   # Just enough to decide on tool calls
-                temperature=0.3,
-            )
-            msg = resp.choices[0].message
-            if not msg.tool_calls:
-                return   # Done — no more tools needed
-
-            # Append assistant's tool-call decision
-            messages.append({
-                "role":       "assistant",
-                "content":    msg.content or "",
-                "tool_calls": [tc.model_dump() for tc in msg.tool_calls],
-            })
-            # Execute each tool and append results
-            for tc in msg.tool_calls:
-                yield ("tool", tc.function.name)
-                result = self._execute_tool(
-                    tc.function.name,
-                    json.loads(tc.function.arguments or "{}"),
-                )
-                messages.append({
-                    "role":         "tool",
-                    "tool_call_id": tc.id,
-                    "content":      result,
-                })
-
-    # ── Public API ────────────────────────────────────────────────────────────
-
-    def ask(self, question: str, history: list) -> str:
-        """Non-streaming: run tool loop then return final text answer."""
-        messages = self._build_messages(question, history)
-        list(self._run_tool_loop(messages))   # Exhaust generator (side-effects only)
-
-        resp = self.client.chat.completions.create(
+        llm = ChatGroq(
             model=self.MODEL,
-            messages=[{"role": "system", "content": SYSTEM_PROMPT}] + messages,
-            max_tokens=1024,
             temperature=0.3,
-        )
-        return resp.choices[0].message.content or ""
-
-    def stream(self, question: str, history: list) -> Generator:
-        """
-        Generator yielding events:
-          ('tool',  tool_name)                         — tool being called
-          ('token', text_chunk)                        — streaming answer token
-          ('done',  {'answer': str, 'messages': list}) — final state for history
-        """
-        messages = self._build_messages(question, history)
-
-        # Phase 1: run tool calls (synchronous — data is local, fast)
-        yield from self._run_tool_loop(messages)
-
-        # Phase 2: stream the final answer (no tools this time)
-        stream = self.client.chat.completions.create(
-            model=self.MODEL,
-            messages=[{"role": "system", "content": SYSTEM_PROMPT}] + messages,
+            api_key=api_key,
             max_tokens=1024,
-            temperature=0.3,
-            stream=True,
         )
-        full_text = ""
-        for chunk in stream:
-            delta = chunk.choices[0].delta.content
-            if delta:
-                full_text += delta
-                yield ("token", delta)
+        llm_with_tools = llm.bind_tools(tools)
 
-        messages.append({"role": "assistant", "content": full_text})
-        yield ("done", {"answer": full_text, "messages": messages})
+        async def agent_node(state: MessagesState):
+            messages = [SystemMessage(content=SYSTEM_PROMPT)] + state["messages"]
+            response = await llm_with_tools.ainvoke(messages)
+            return {"messages": [response]}
+
+        builder = StateGraph(MessagesState)
+        builder.add_node("agent", agent_node)
+        builder.add_node("tools", ToolNode(tools))
+        builder.set_entry_point("agent")
+        builder.add_conditional_edges("agent", tools_condition)
+        builder.add_edge("tools", "agent")
+        return builder.compile()
+
+    # ── Message conversion helpers ────────────────────────────────────────────
+
+    @staticmethod
+    def _to_lc_messages(history: list) -> list:
+        """Convert plain {role, content} dicts → LangChain message objects."""
+        from langchain_core.messages import HumanMessage, AIMessage
+
+        result = []
+        for m in history:
+            role = m.get("role", "user")
+            content = m.get("content", "")
+            if role == "user":
+                result.append(HumanMessage(content=content))
+            elif role == "assistant":
+                result.append(AIMessage(content=content))
+        return result
+
+    # ── Streaming API ─────────────────────────────────────────────────────────
+
+    async def stream(self, question: str, history: list) -> AsyncGenerator:
+        """
+        Async generator yielding events:
+          ('tool',  tool_name)                          — tool being called
+          ('token', text_chunk)                         — streaming answer token
+          ('done',  {'answer': str, 'history': list})   — final state
+        """
+        from langchain_core.messages import HumanMessage
+
+        lc_history = self._to_lc_messages(history)
+        input_messages = lc_history + [HumanMessage(content=question)]
+
+        full_answer = ""
+        tool_calls_seen: set[str] = set()
+        # Track whether any tools have fired in the current agent turn so we
+        # can discard pre-tool preamble tokens (e.g. "Let me look that up…").
+        pending_tool_in_current_turn = False
+
+        async for event in self.graph.astream_events(
+            {"messages": input_messages},
+            version="v2",
+            config={"recursion_limit": 25},
+        ):
+            kind = event["event"]
+            name = event.get("name", "")
+
+            # New agent turn starts — reset the tool-in-turn flag
+            if kind == "on_chain_start" and name == "agent":
+                pending_tool_in_current_turn = False
+                # Reset accumulated text so we only keep the final answer pass
+                full_answer = ""
+
+            # Tool start — emit badge event (deduplicate parallel calls)
+            elif kind == "on_tool_start":
+                pending_tool_in_current_turn = True
+                key = f"{name}_{event.get('run_id','')}"
+                if key not in tool_calls_seen:
+                    tool_calls_seen.add(key)
+                    yield ("tool", name)
+
+            # Streaming tokens from the agent's LLM call
+            elif kind == "on_chat_model_stream":
+                chunk = event["data"].get("chunk")
+                if chunk and chunk.content and not pending_tool_in_current_turn:
+                    token = chunk.content
+                    full_answer += token
+                    yield ("token", token)
+
+        # Build clean history (only user/assistant turns)
+        new_history = list(history) + [
+            {"role": "user",      "content": question},
+            {"role": "assistant", "content": full_answer},
+        ]
+        yield ("done", {"answer": full_answer, "history": new_history})

@@ -106,22 +106,20 @@ export const sendChat = async (
 // ── Streaming chat with tool use ──────────────────────────────────────────────
 
 /**
- * Full API history entry — includes tool call messages that the backend
- * needs for multi-turn context but which are never displayed directly.
+ * Simple chat history entry — only user/assistant turns.
+ * Tool internals are handled server-side by LangGraph and never sent to the client.
  */
 export interface ApiMessage {
-  role: 'user' | 'assistant' | 'tool';
-  content?: string | null;
-  tool_calls?: unknown[];
-  tool_call_id?: string;
+  role: 'user' | 'assistant';
+  content: string;
 }
 
 export const streamChat = async (
   question: string,
   history: ApiMessage[],
   onToken: (chunk: string) => void,
-  onTool:  (label: string) => void,
-  onDone:  (answer: string, messages: ApiMessage[]) => void,
+  onTool:  (name: string) => void,
+  onDone:  (answer: string, history: ApiMessage[]) => void,
   onError: (err: string) => void,
 ): Promise<void> => {
   try {
@@ -154,13 +152,13 @@ export const streamChat = async (
         if (!line.startsWith('data: ')) continue;
         try {
           const event = JSON.parse(line.slice(6));
-          if (event.type === 'tool')  onTool(event.label ?? event.name);
+          if (event.type === 'tool')  onTool(event.name);
           if (event.type === 'token') onToken(event.content);
-          if (event.type === 'done')  onDone(event.answer, event.messages);
+          if (event.type === 'done')  onDone(event.answer, event.history ?? []);
         } catch { /* skip malformed events */ }
       }
     }
-  } catch (e) {
+  } catch {
     onError('Connection error. Make sure the backend is running.');
   }
 };

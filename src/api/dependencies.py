@@ -15,24 +15,24 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from services.store import CrimeDataStore
     from services.forecast import ForecastEngine
-    from services.chat import ChatEngine
+    from services.chat import ChatAgent
 
 # ── Singleton engines (None until init() is called) ───────────────────────────
 
 store: "CrimeDataStore | None" = None
 forecast_engine: "ForecastEngine | None" = None
-chat_engine: "ChatEngine | None" = None
+chat_agent: "ChatAgent | None" = None
 
 
 def init():
     """Instantiate all service singletons. Called once by main.py at startup."""
-    global store, forecast_engine, chat_engine
+    global store, forecast_engine, chat_agent
     from services.store import CrimeDataStore
     from services.forecast import ForecastEngine
-    from services.chat import ChatEngine
+    from services.chat import ChatAgent
     store = CrimeDataStore()
     forecast_engine = ForecastEngine(store.df)
-    chat_engine = ChatEngine(store.df, store=store, forecast_engine=forecast_engine)
+    chat_agent = ChatAgent(store.df, store=store, forecast_engine=forecast_engine)
 
 
 def reinit():
@@ -40,12 +40,14 @@ def reinit():
     Hot-reload: clear DB caches, re-seed from crime.json, rebuild all engines.
     Called by POST /api/reload after a pipeline run writes new data.
     """
+    global chat_agent
     import db
     if db.DATABASE_URL:
         db.clear_records()
         db.seed_from_json("data/processed/crime.json")
         db.store_anomalies([])
         db.store_forecasts({})
+    chat_agent = None  # Force graph rebuild on next request
     init()
 
 
