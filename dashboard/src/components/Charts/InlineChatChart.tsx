@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 interface InlineChatChartProps {
   toolName: string;
   data: any;
+  args?: any;
 }
 
 const COLORS = [
@@ -248,19 +249,35 @@ const CompactForecastChart = ({ data }: { data: any }) => {
   );
 };
 
-export const InlineChatChart: React.FC<InlineChatChartProps> = ({ toolName, data }) => {
+export const InlineChatChart: React.FC<InlineChatChartProps> = ({ toolName, data, args }) => {
   let chart = null;
   let label = '';
 
+  const buildLabel = (base: string, argsObj: any) => {
+    if (!argsObj || Object.keys(argsObj).length === 0) return base;
+    const parts = [base];
+    if (argsObj.year) parts.push(argsObj.year);
+    if (argsObj.group) parts.push(argsObj.group);
+    if (argsObj.domain) parts.push(argsObj.domain);
+    // Fallback if args exist but aren't year/group/domain
+    if (parts.length === 1 && Object.keys(argsObj).length > 0) {
+      const firstVal = Object.values(argsObj)[0];
+      if (typeof firstVal === 'string' || typeof firstVal === 'number') {
+        parts.push(String(firstVal));
+      }
+    }
+    return parts.join(' • ');
+  };
+
   if (toolName === 'query_trends') {
     chart = <CompactTrendsChart data={data} />;
-    label = 'Historical Trends';
+    label = buildLabel('Historical Trends', args);
   } else if (toolName === 'get_categories') {
     chart = <CompactCategoryChart data={data} />;
-    label = 'Category Breakdown';
+    label = buildLabel('Category Breakdown', args);
   } else if (toolName === 'get_forecast') {
     chart = <CompactForecastChart data={data} />;
-    label = 'Predictive Forecast';
+    label = buildLabel('Predictive Forecast', args);
   }
 
   if (!chart) return null;

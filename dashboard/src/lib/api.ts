@@ -125,7 +125,7 @@ export const streamChat = async (
   history: ApiMessage[],
   onToken: (chunk: string) => void,
   onTool:  (name: string) => void,
-  onToolResult: (name: string, data: any) => void,
+  onToolResult: (name: string, data: any, args: any) => void,
   onDone:  (answer: string, history: ApiMessage[], meta: ChatMeta) => void,
   onError: (err: string) => void,
 ): Promise<void> => {
@@ -161,9 +161,10 @@ export const streamChat = async (
         try {
           const event = JSON.parse(line.slice(6));
           if (event.type === 'tool')  onTool(event.name);
-          if (event.type === 'tool_result') onToolResult(event.name, event.data);
+          if (event.type === 'tool_result') onToolResult(event.name, event.data, event.args);
           if (event.type === 'token') onToken(event.content);
           if (event.type === 'done')  onDone(event.answer, event.history ?? [], {
+
             timestamp:   new Date().toISOString(),
             duration_ms: Date.now() - startedAt,
             tokens:      event.tokens ?? null,

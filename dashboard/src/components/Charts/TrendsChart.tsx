@@ -58,7 +58,7 @@ export const TrendsChart = ({ data }: { data: any[] }) => {
               labelStyle={{ color: '#2563EB', marginBottom: '8px', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.2em' }}
             />
             <Area 
-              type="stepAfter" 
+              type="monotone" 
               dataKey="Registered" 
               stroke="#09090B" 
               strokeWidth={2} 
@@ -67,7 +67,7 @@ export const TrendsChart = ({ data }: { data: any[] }) => {
               animationDuration={1000}
             />
             <Area 
-              type="stepAfter" 
+              type="monotone" 
               dataKey="Detected" 
               stroke="#2563EB" 
               strokeWidth={1.5} 

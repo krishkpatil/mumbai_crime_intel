@@ -24,14 +24,14 @@ export const CategoryChart = ({ data }: { data: any[] }) => {
       
       <div className="flex-1">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 60 }}>
             <CartesianGrid strokeDasharray="0" stroke="#f8fafc" vertical={false} />
             <XAxis 
               dataKey="category" 
-              stroke="#cbd5e1" 
-              style={{ fontSize: '9px', fontFamily: '"JetBrains Mono", monospace', fontWeight: 700 }}
-              tickLine={true} 
-              axisLine={true}
+              stroke="#64748b" 
+              style={{ fontSize: '10px', fontFamily: '"JetBrains Mono", monospace', fontWeight: 700 }}
+              tickLine={false} 
+              axisLine={false}
               interval={0}
               angle={-45}
               textAnchor="end"
@@ -41,11 +41,16 @@ export const CategoryChart = ({ data }: { data: any[] }) => {
             <YAxis 
               stroke="#cbd5e1" 
               style={{ fontSize: '10px', fontFamily: '"JetBrains Mono", monospace', fontWeight: 700 }}
-              tickLine={true} 
-              axisLine={true}
+              tickLine={false} 
+              axisLine={false}
+              tickFormatter={(value) => {
+                if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
+                return value;
+              }}
+              width={50}
             />
             <Tooltip 
-              cursor={{ fill: 'rgba(37, 99, 235, 0.03)' }} 
+              cursor={{ fill: 'rgba(37, 99, 235, 0.04)' }} 
               contentStyle={{ 
                 backgroundColor: '#09090B', 
                 border: '1px solid #2563EB', 
@@ -55,9 +60,9 @@ export const CategoryChart = ({ data }: { data: any[] }) => {
               itemStyle={{ color: '#fff', fontSize: '10px', fontFamily: '"JetBrains Mono", monospace', fontWeight: '800', textTransform: 'uppercase' }}
               labelStyle={{ color: '#2563EB', marginBottom: '8px', fontSize: '9px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em' }}
             />
-            <Bar dataKey="Registered" fill="#09090B" radius={0} animationDuration={1000} barSize={32}>
+            <Bar dataKey="Registered" radius={[2, 2, 0, 0]} animationDuration={1000} barSize={48}>
               {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                <Cell key={`cell-${index}`} fill={index === 0 ? '#2563EB' : '#09090B'} />
               ))}
             </Bar>
           </BarChart>

@@ -26,7 +26,8 @@ Rules:
 - When calling a tool, provide only the tool call, no preamble
 - Be specific: cite exact months, numbers, percentage changes
 - Keep responses concise (3–6 sentences) unless the user asks for detail
-- If a question is outside the dataset scope, say so clearly"""
+- If a question is outside the dataset scope, say so clearly
+- IMPORTANT: If a tool returns an error or empty data ([]), DO NOT retry with guessed parameters. Immediately state that the data is unavailable."""
 
 
 # ── Tool factory (avoids circular imports with dependencies.py) ───────────────
@@ -37,8 +38,28 @@ def create_tools(store, forecast_engine):
     data store and forecast engine.  Called once inside ChatAgent.__init__.
     """
     from langchain_core.tools import tool
+    from typing import Literal, Optional
+    from pydantic import BaseModel, Field
 
-    @tool
+    CrimeGroup = Literal[
+        'Women Crimes', 'Cyber Crime', 'Fatal Crimes', 'Theft & Robbery', 
+        'Violent Crimes', 'White Collar', 'Kidnapping', 'Misc'
+    ]
+
+    class TrendsInput(BaseModel):
+        group: Optional[CrimeGroup] = Field(default=None, description="Optional crime group filter")
+        domain: Optional[str] = Field(default=None, description="Optional domain filter")
+        year: Optional[int] = Field(default=None, description="Optional year filter")
+
+    class CategoriesInput(BaseModel):
+        year: Optional[int] = Field(default=None, description="Optional year filter")
+
+    class ForecastInput(BaseModel):
+        group: Literal['Women Crimes', 'Fatal Crimes', 'Kidnapping', 'Misc'] = Field(
+            description="Crime group to forecast. Must be one of the four supported groups."
+        )
+
+    @tool(args_schema=TrendsInput)
     def query_trends(
         group: str | None = None, domain: str | None = None, year: int | None = None
     ) -> str:
@@ -50,53 +71,77 @@ def create_tools(store, forecast_engine):
 
         If no year is provided, returns the 36 most recent months.
         """
-        kwargs = {}
-        if group:
-            kwargs["group"] = group
-        if domain:
-            kwargs["domain"] = domain
-        if year:
-            kwargs["year"] = year
-        data = store.get_summary(**kwargs)
+        try:
+            kwargs = {}
+            if group:
+                kwargs["group"] = group
+            if domain:
+                kwargs["domain"] = domain
+            if year:
+                kwargs["year"] = year
+            data = store.get_summary(**kwargs)
 
-        # If filtered by year, return all available months for that year
-        if year:
-            return json.dumps(data)
+            if not data:
+                return json.dumps({"error": "No data found for these parameters. Do NOT retry with different parameters."})
 
-        # Default to last 36 months for broader trends
-        return json.dumps(data[-36:])
+            # If filtered by year, return all available months for that year
+            if year:
+                return json.dumps(data)
 
-    @tool
+            # Default to last 36 months for broader trends
+            return json.dumps(data[-36:])
+        except Exception as e:
+            return json.dumps({"error": f"Internal query error: {str(e)}"})
+
+    @tool(args_schema=CategoriesInput)
     def get_categories(year: int | None = None) -> str:
         """Get total registered/detected crimes broken down by category.
 
         Optional year filter (e.g. 2023).  Returns every category with
         its registered and detected totals.
         """
-        data = store.get_categories(year=year)
-        return json.dumps(data)
+        try:
+            data = store.get_categories(year=year)
+            if not data:
+                return json.dumps({"error": "No category data found. Do NOT retry with different parameters."})
+            return json.dumps(data)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
 
     @tool
     def get_anomalies() -> str:
         """Get statistically detected anomalies and structural change points.
 
-        Uses Isolation Forest + CUSUM algorithms.  Returns date, type,
-        severity, detail text, and isolation score for each anomaly.
+        Uses Isolation Forest + CUSUM algorithms. Returns ALL historical anomalies.
+        IMPORTANT: Do not call this tool multiple times. If you need anomalies for a specific year, call this ONCE and filter the returned JSON yourself.
         """
-        return json.dumps(store.get_anomalies())
+        try:
+            data = store.get_anomalies()
+            if not data:
+                return json.dumps({"error": "No anomalies found."})
+            return json.dumps(data)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
 
-    @tool
+    @tool(args_schema=ForecastInput)
     def get_forecast(group: str) -> str:
         """Get 6-month Prophet forecast for a crime group.
 
         Available groups: 'Women Crimes', 'Fatal Crimes', 'Kidnapping', 'Misc'.
-        Returns only future forecast points (is_forecast=True) with
-        yhat, yhat_lower, yhat_upper confidence bands.
+        Returns future forecast points (is_forecast=True) with confidence bands.
+        IMPORTANT: This always returns the same 6-month future window. Do NOT call this multiple times in a loop. If it returns 2026 data and you wanted 2025, just tell the user the available dates.
         """
-        result = forecast_engine.get(group)
-        if group in result:
-            result[group] = [r for r in result[group] if r.get("is_forecast")]
-        return json.dumps(result)
+        try:
+            result = forecast_engine.get(group)
+            if group in result:
+                result[group] = [r for r in result[group] if r.get("is_forecast")]
+                if not result[group]:
+                    return json.dumps({"error": f"No forecast data available for {group}."})
+            else:
+                return json.dumps({"error": f"Group '{group}' is not forecastable."})
+            return json.dumps(result)
+        except Exception as e:
+            return json.dumps({"error": str(e)})
 
     @tool
     def get_dataset_info() -> str:
@@ -160,6 +205,7 @@ class ChatAgent:
 
     def _build_graph(self):
         from langchain_groq import ChatGroq
+        from langchain_nvidia_ai_endpoints import ChatNVIDIA
         from langchain_core.messages import SystemMessage
         from langgraph.graph import StateGraph, MessagesState, END
         from langgraph.prebuilt import ToolNode, tools_condition
@@ -167,6 +213,8 @@ class ChatAgent:
         api_key = os.environ.get("GROQ_API_KEY")
         if not api_key:
             raise RuntimeError("GROQ_API_KEY not set.")
+            
+        nvidia_api_key = os.environ.get("NVIDIA_API_KEY")
 
         tools = create_tools(self._store, self._forecast_engine)
 
@@ -176,7 +224,20 @@ class ChatAgent:
             api_key=api_key,
             max_tokens=1024,
         )
-        llm_with_tools = llm.bind_tools(tools, tool_choice="auto")
+        
+        # Add NVIDIA fallback for rate limits
+        if nvidia_api_key:
+            nvidia_llm = ChatNVIDIA(
+                model="meta/llama-3.3-70b-instruct",
+                temperature=0.3,
+                api_key=nvidia_api_key,
+                max_tokens=1024,
+            )
+            llm_with_tools = llm.bind_tools(tools, tool_choice="auto").with_fallbacks(
+                [nvidia_llm.bind_tools(tools, tool_choice="auto")]
+            )
+        else:
+            llm_with_tools = llm.bind_tools(tools, tool_choice="auto")
 
         async def agent_node(state: MessagesState):
             messages = [SystemMessage(content=SYSTEM_PROMPT)] + state["messages"]
@@ -232,7 +293,7 @@ class ChatAgent:
         async for event in self.graph.astream_events(
             {"messages": input_messages},
             version="v2",
-            config={"recursion_limit": 25},
+            config={"recursion_limit": 8},
         ):
             kind = event["event"]
             name = event.get("name", "")
@@ -259,8 +320,9 @@ class ChatAgent:
                     output = event["data"].get("output", {})
                     # output is a ToolMessage; .content is the JSON string result
                     content = output.content if hasattr(output, "content") else str(output)
+                    args = event["data"].get("input", {})
                     try:
-                        yield ("tool_result", {"name": name, "data": json.loads(content)})
+                        yield ("tool_result", {"name": name, "data": json.loads(content), "args": args})
                     except Exception:
                         pass  # skip if not valid JSON
 

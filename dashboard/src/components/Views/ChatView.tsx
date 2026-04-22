@@ -34,7 +34,7 @@ interface DisplayMessage {
   role: 'user' | 'assistant';
   content: string;
   tools?: string[];   // human-readable labels for tool badges
-  toolResults?: Array<{ name: string; data: any }>;
+  toolResults?: Array<{ name: string; data: any; args?: any }>;
   streaming?: boolean;
   meta?: ChatMeta;
 }
@@ -156,8 +156,8 @@ export const ChatView: React.FC = () => {
       },
 
       // onToolResult — store data for inline charts
-      (name, data) => {
-        pendingToolResults.current = [...pendingToolResults.current, { name, data }];
+      (name, data, args) => {
+        pendingToolResults.current = [...pendingToolResults.current, { name, data, args }];
       },
 
       // onDone — finalise message, persist history
@@ -306,7 +306,7 @@ export const ChatView: React.FC = () => {
               {msg.role === 'assistant' && !msg.streaming && msg.toolResults && msg.toolResults.length > 0 && (
                 <div className="flex flex-col gap-2">
                   {msg.toolResults.map((res, j) => (
-                    <InlineChatChart key={j} toolName={res.name} data={res.data} />
+                    <InlineChatChart key={j} toolName={res.name} data={res.data} args={res.args} />
                   ))}
                 </div>
               )}

@@ -53,7 +53,12 @@ async def chat_stream(req: ChatRequest):
                 yield (
                     "data: "
                     + json.dumps(
-                        {"type": "tool_result", "name": payload["name"], "data": payload["data"]}
+                        {
+                            "type": "tool_result", 
+                            "name": payload["name"], 
+                            "data": payload["data"], 
+                            "args": payload.get("args", {})
+                        }
                     )
                     + "\n\n"
                 )
