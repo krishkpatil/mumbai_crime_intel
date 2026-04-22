@@ -103,6 +103,68 @@ export const sendChat = async (
   return resp.json();
 };
 
+// ── Streaming chat with tool use ──────────────────────────────────────────────
+
+/**
+ * Full API history entry — includes tool call messages that the backend
+ * needs for multi-turn context but which are never displayed directly.
+ */
+export interface ApiMessage {
+  role: 'user' | 'assistant' | 'tool';
+  content?: string | null;
+  tool_calls?: unknown[];
+  tool_call_id?: string;
+}
+
+export const streamChat = async (
+  question: string,
+  history: ApiMessage[],
+  onToken: (chunk: string) => void,
+  onTool:  (label: string) => void,
+  onDone:  (answer: string, messages: ApiMessage[]) => void,
+  onError: (err: string) => void,
+): Promise<void> => {
+  try {
+    const resp = await fetch(`${BASE_URL}/chat/stream`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ question, history }),
+    });
+
+    if (!resp.ok || !resp.body) {
+      onError('Chat stream failed. Is the backend running?');
+      return;
+    }
+
+    const reader  = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer    = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE lines are separated by \n\n; keep any incomplete line in the buffer
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop() ?? '';
+
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const event = JSON.parse(line.slice(6));
+          if (event.type === 'tool')  onTool(event.label ?? event.name);
+          if (event.type === 'token') onToken(event.content);
+          if (event.type === 'done')  onDone(event.answer, event.messages);
+        } catch { /* skip malformed events */ }
+      }
+    }
+  } catch (e) {
+    onError('Connection error. Make sure the backend is running.');
+  }
+};
+
 // ── Data tab ──────────────────────────────────────────────────────────────────
 
 export interface QualityRecord {

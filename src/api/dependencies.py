@@ -32,7 +32,7 @@ def init():
     from services.chat import ChatEngine
     store = CrimeDataStore()
     forecast_engine = ForecastEngine(store.df)
-    chat_engine = ChatEngine(store.df)
+    chat_engine = ChatEngine(store.df, store=store, forecast_engine=forecast_engine)
 
 
 def reinit():
